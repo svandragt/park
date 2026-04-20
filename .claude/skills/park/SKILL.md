@@ -1,7 +1,7 @@
 ---
 name: park
-version: 1.0.0
-description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'."
+version: 1.1.0
+description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
 author: svandragt
 ---
 
@@ -70,3 +70,52 @@ park add \
 ```
 
 Then reports: `parked #3: Refactoring auth middleware`
+
+## Parking GitHub Issues
+
+**Trigger phrases:** "park github issues", "park existing github issues", "park open issues", "park issues from github"
+
+**Workflow:**
+
+1. Detect the repo remote:
+   ```bash
+   git remote get-url origin 2>/dev/null
+   ```
+
+2. Fetch open issues (respect any label/milestone/limit the user specified):
+   ```bash
+   gh issue list --state open --json number,title,body,labels,url,milestone --limit 50
+   ```
+
+3. For each issue, check for duplicates before parking:
+   ```bash
+   park search "<issue title>"
+   ```
+   Skip the issue if a match is found (report it as already parked).
+
+4. For each non-duplicate issue, **reason** about the field mapping — do not dump raw content:
+
+   | Flag | How to populate |
+   |---|---|
+   | `--name` | Issue title verbatim |
+   | `--desc` | One-line summary synthesized from the body (fall back to title if body is empty) |
+   | `--body` | Issue body trimmed and reformatted — remove boilerplate, keep the substance |
+   | `--why` | Inferred motivation: what problem does this fix, or what value does it add? |
+   | `--how` | Concrete first step to start working on this issue |
+   | `--tags` | Label names normalized (lowercase, hyphens→underscores) plus any inferred keywords |
+   | `--type` | Inferred from labels: `bug`, `feature`, `chore`, `docs` — default `project` |
+
+   ```bash
+   park add --name "..." --desc "..." --body "..." --why "..." --how "..." --tags "..." --type "..."
+   ```
+
+5. Report a summary: `parked N issues: #id Title, ...` and list any skipped duplicates.
+
+**Conversational filters** (handle without needing explicit flags):
+- "park issues labelled bug" → add `--label bug` to the `gh issue list` call
+- "park issues in milestone v2" → add `--milestone v2`
+- "park the top 5 issues" → set `--limit 5`
+
+**Skip criteria:**
+- Issues with no body and a one-word title (too sparse to synthesize meaningful fields)
+- Issues already present in park (duplicate check above)
