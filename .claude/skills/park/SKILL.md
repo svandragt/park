@@ -1,6 +1,6 @@
 ---
 name: park
-version: 1.1.0
+version: 1.2.0
 description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
 author: svandragt
 ---
@@ -16,6 +16,7 @@ Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.d
 3. When the user asks to see what's parked, auto-detect the current git remote (`git remote get-url origin 2>/dev/null`) and pass it via `--remote` to scope results to the current project. If no remote exists, run `park list` without a filter.
 4. When the user marks something done/resolved, run `park done <id>`.
 5. When the user wants to work on, resume, or unpark an item, run `park show <id>` and present the full context (body, why, how) so they can pick up immediately.
+6. When the user wants to reopen a resolved/archived item, run `park reopen <id>`.
 
 ## Parking: extract these fields from conversation context
 
@@ -53,6 +54,18 @@ park done <id>
 
 # Archive
 park archive <id>
+
+# Reopen a resolved/archived item
+park reopen <id>
+
+# Hard-delete a single item
+park delete <id>
+
+# Bulk-delete resolved/archived items older than N days (default 30)
+park prune --days 30
+
+# Move DB to a new directory (for sync folder setup)
+park migrate <dest-dir>
 ```
 
 ## Example
