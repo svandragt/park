@@ -10,6 +10,15 @@ A CLI tool for saving and recalling human work context, backed by SQLite. (priva
 
 **Your AI assistant's context window is filling up.** Park the current task so the next session can pick up exactly where you left off, without re-explaining everything.
 
+## How is park different?
+
+| Tool | What it does | What park adds |
+|---|---|---|
+| **git stash** | Saves uncommitted code changes in the current repo | Saves *why* you were there, the next step, and context across *all* repos — no code changes required |
+| **LLM session resume** | Re-feeds prior conversation to the AI | A structured, queryable record you write once; the next session starts from facts, not a transcript |
+| **GitHub Issues** | Tracks bugs and features for a team | Local-first and private; captures device, branch, and "how to pick up" automatically; spans repos without a remote |
+| **Todo list** | Records tasks to complete | Records the full context — where in the code, why it matters, exact next step — not just the task name |
+
 ## Install
 
 ```bash
