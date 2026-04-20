@@ -65,6 +65,7 @@ type ListFilter struct {
 	Remote string
 	Branch string
 	Tag    string
+	Type   string
 }
 
 func (s *Store) List(f ListFilter) ([]Item, error) {
@@ -87,6 +88,10 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 		query += ` AND (',' || tags || ',' LIKE ?)`
 		args = append(args, "%,"+f.Tag+",%")
 	}
+	if f.Type != "" {
+		query += ` AND type = ?`
+		args = append(args, f.Type)
+	}
 	query += ` ORDER BY created_at DESC, id DESC`
 
 	rows, err := s.db.Query(query, args...)
@@ -97,14 +102,20 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 	return scanRows(rows)
 }
 
-func (s *Store) Search(keyword string) ([]Item, error) {
-	rows, err := s.db.Query(`
+func (s *Store) Search(keyword string, status string) ([]Item, error) {
+	query := `
 SELECT p.id, p.name, p.description, p.type, p.body, p.why, p.how_to_apply,
        p.git_remote, p.branch, p.tags, p.status, p.device, p.created_at, p.updated_at
 FROM parks_fts f
 JOIN parks p ON p.id = f.rowid
-WHERE parks_fts MATCH ?
-ORDER BY bm25(parks_fts)`, keyword)
+WHERE parks_fts MATCH ?`
+	args := []any{keyword}
+	if status != "" {
+		query += ` AND p.status = ?`
+		args = append(args, status)
+	}
+	query += ` ORDER BY bm25(parks_fts)`
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

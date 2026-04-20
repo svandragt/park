@@ -36,7 +36,9 @@ park list --status resolved        # resolved items
 park list --remote github.com/org/repo  # filter by repo (SSH or HTTPS format)
 park list --branch main            # filter by branch
 park list --tag auth               # filter by tag
-park search "JWT"                  # full-text search (porter stemming)
+park list --type bug               # filter by type (project/bug/feature/chore/docs)
+park search "JWT"                  # full-text search (porter stemming, active items only)
+park search --status all "JWT"     # search across all statuses
 park show <id>                     # full detail
 park show -                        # show most recently added item
 park done <id>                     # mark resolved

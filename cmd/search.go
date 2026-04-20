@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
@@ -8,12 +9,23 @@ import (
 )
 
 func RunSearch(store *park.Store, args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("usage: park search <keyword>")
-	}
-	keyword := strings.Join(args, " ")
+	fs := flag.NewFlagSet("search", flag.ContinueOnError)
+	status := fs.String("status", "active", "filter by status (active/resolved/archived/all)")
 
-	items, err := store.Search(keyword)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() == 0 {
+		return fmt.Errorf("usage: park search [--status all] <keyword>")
+	}
+	keyword := strings.Join(fs.Args(), " ")
+
+	filterStatus := *status
+	if filterStatus == "all" {
+		filterStatus = ""
+	}
+
+	items, err := store.Search(keyword, filterStatus)
 	if err != nil {
 		return err
 	}

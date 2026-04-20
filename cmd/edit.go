@@ -30,27 +30,24 @@ func RunEdit(store *park.Store, args []string) error {
 	}
 
 	f := park.UpdateFields{}
-	if *name != "" {
-		f.Name = name
-	}
-	if *desc != "" {
-		f.Description = desc
-	}
-	if *body != "" {
-		f.Body = body
-	}
-	if *why != "" {
-		f.Why = why
-	}
-	if *how != "" {
-		f.HowToApply = how
-	}
-	if *tags != "" {
-		f.Tags = tags
-	}
-	if *typ != "" {
-		f.Type = typ
-	}
+	fs.Visit(func(fl *flag.Flag) {
+		switch fl.Name {
+		case "name":
+			f.Name = name
+		case "desc":
+			f.Description = desc
+		case "body":
+			f.Body = body
+		case "why":
+			f.Why = why
+		case "how":
+			f.HowToApply = how
+		case "tags":
+			f.Tags = tags
+		case "type":
+			f.Type = typ
+		}
+	})
 
 	if err := store.Update(id, f); err != nil {
 		return err

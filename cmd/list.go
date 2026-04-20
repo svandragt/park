@@ -13,6 +13,7 @@ func RunList(store *park.Store, args []string) error {
 	remote := fs.String("remote", "", "filter by git remote URL")
 	branch := fs.String("branch", "", "filter by branch name")
 	tag := fs.String("tag", "", "filter by tag")
+	typ := fs.String("type", "", "filter by type (project/bug/feature/chore/docs)")
 	current := fs.Bool("current", false, "filter by current git remote and branch")
 
 	if err := fs.Parse(args); err != nil {
@@ -34,6 +35,7 @@ func RunList(store *park.Store, args []string) error {
 		Remote: normalizeRemote(*remote),
 		Branch: *branch,
 		Tag:    *tag,
+		Type:   *typ,
 	})
 	if err != nil {
 		return err
@@ -49,6 +51,9 @@ func RunList(store *park.Store, args []string) error {
 		}
 		if it.GitRemote != "" {
 			fmt.Printf("     %s  (%s)\n", it.GitRemote, it.Branch)
+		}
+		if it.Tags != "" {
+			fmt.Printf("     tags: %s\n", it.Tags)
 		}
 		fmt.Println()
 	}
