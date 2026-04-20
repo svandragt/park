@@ -43,3 +43,12 @@ Set `PARK_DB=/path/to/park.db` to override the default database location (`~/.lo
 ### No flags library beyond stdlib
 
 Uses only `flag.FlagSet` from the standard library — no cobra/urfave.
+
+## graphify
+
+This project has a graphify-rs knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `graphify-rs build --path . --output graphify-out --no-llm --update` to keep the graph current (fast, AST-only, ~2-5s)
