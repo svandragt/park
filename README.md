@@ -1,6 +1,6 @@
 # park
 
-A CLI tool for saving and recalling human work context, backed by SQLite.
+A CLI tool for saving and recalling human work context, backed by SQLite. (private alternative for GitHub Issues)
 
 **You're mid-debug when a colleague asks for urgent help.** Park where you are, context-switch, come back and pick up exactly where you left off — right file, right line, right next step.
 
