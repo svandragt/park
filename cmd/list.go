@@ -11,6 +11,8 @@ func RunList(store *park.Store, args []string) error {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	status := fs.String("status", "active", "filter by status (active/resolved/archived/all)")
 	remote := fs.String("remote", "", "filter by git remote URL")
+	branch := fs.String("branch", "", "filter by branch name")
+	tag := fs.String("tag", "", "filter by tag")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -21,7 +23,12 @@ func RunList(store *park.Store, args []string) error {
 		filterStatus = ""
 	}
 
-	items, err := store.List(filterStatus, normalizeURL(*remote))
+	items, err := store.List(park.ListFilter{
+		Status: filterStatus,
+		Remote: normalizeURL(*remote),
+		Branch: *branch,
+		Tag:    *tag,
+	})
 	if err != nil {
 		return err
 	}

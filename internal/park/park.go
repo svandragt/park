@@ -47,17 +47,32 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	return res.LastInsertId()
 }
 
-func (s *Store) List(status string, remote string) ([]Item, error) {
+type ListFilter struct {
+	Status string
+	Remote string
+	Branch string
+	Tag    string
+}
+
+func (s *Store) List(f ListFilter) ([]Item, error) {
 	query := `SELECT id, name, description, type, body, why, how_to_apply, git_remote, branch, tags, status, device, created_at, updated_at FROM parks WHERE 1=1`
 	args := []any{}
 
-	if status != "" {
+	if f.Status != "" {
 		query += ` AND status = ?`
-		args = append(args, status)
+		args = append(args, f.Status)
 	}
-	if remote != "" {
+	if f.Remote != "" {
 		query += ` AND git_remote = ?`
-		args = append(args, remote)
+		args = append(args, f.Remote)
+	}
+	if f.Branch != "" {
+		query += ` AND branch = ?`
+		args = append(args, f.Branch)
+	}
+	if f.Tag != "" {
+		query += ` AND (',' || tags || ',' LIKE ?)`
+		args = append(args, "%,"+f.Tag+",%")
 	}
 	query += ` ORDER BY created_at DESC`
 
@@ -92,6 +107,67 @@ func (s *Store) Get(id int64) (*Item, error) {
 		return nil, err
 	}
 	return &it, nil
+}
+
+type UpdateFields struct {
+	Name        *string
+	Description *string
+	Body        *string
+	Why         *string
+	HowToApply  *string
+	Tags        *string
+	Type        *string
+}
+
+func (s *Store) Update(id int64, f UpdateFields) error {
+	sets := []string{}
+	args := []any{}
+	if f.Name != nil {
+		sets = append(sets, "name = ?")
+		args = append(args, *f.Name)
+	}
+	if f.Description != nil {
+		sets = append(sets, "description = ?")
+		args = append(args, *f.Description)
+	}
+	if f.Body != nil {
+		sets = append(sets, "body = ?")
+		args = append(args, *f.Body)
+	}
+	if f.Why != nil {
+		sets = append(sets, "why = ?")
+		args = append(args, *f.Why)
+	}
+	if f.HowToApply != nil {
+		sets = append(sets, "how_to_apply = ?")
+		args = append(args, *f.HowToApply)
+	}
+	if f.Tags != nil {
+		sets = append(sets, "tags = ?")
+		args = append(args, *f.Tags)
+	}
+	if f.Type != nil {
+		sets = append(sets, "type = ?")
+		args = append(args, *f.Type)
+	}
+	if len(sets) == 0 {
+		return nil
+	}
+	args = append(args, id)
+	query := "UPDATE parks SET updated_at = CURRENT_TIMESTAMP"
+	for _, s := range sets {
+		query += ", " + s
+	}
+	query += " WHERE id = ?"
+	res, err := s.db.Exec(query, args...)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) UpdateRemote(oldURL, newURL string) (int64, error) {
