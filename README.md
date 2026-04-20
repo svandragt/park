@@ -31,6 +31,19 @@ and updates all existing items to the canonical URL automatically.
 |---|---|
 | `PARK_DB` | `~/.local/share/park/park.db` (XDG-aware) |
 
+## Claude Code skill
+
+A skill for [Claude Code](https://claude.ai/code) is included in the repository. It lets you park and resume context using natural language ("park this", "show parked", "work on #2").
+
+To install, copy the skill into Claude's skills directory:
+
+```bash
+mkdir -p ~/.claude/skills/park
+cp .claude/skills/park/SKILL.md ~/.claude/skills/park/SKILL.md
+```
+
+Once installed, Claude will recognize park-related phrases and call the `park` CLI automatically.
+
 ## Build
 
 ```bash
