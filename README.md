@@ -18,9 +18,12 @@ park list --remote github.com/org/repo  # filter by repo
 park show <id>                     # full detail
 park done <id>                     # mark resolved
 park archive <id>                  # archive
+park rename-remote <old> <new>     # update remote URL across all items
 ```
 
-`add` automatically captures hostname, git remote, and current branch.
+`add` automatically captures hostname, git remote, and current branch. If the
+remote has been renamed (e.g. a GitHub repo rename), `add` detects the redirect
+and updates all existing items to the canonical URL automatically.
 
 ## Configuration
 

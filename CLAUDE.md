@@ -32,6 +32,7 @@ Set `PARK_DB=/path/to/park.db` to override the default database location (`~/.lo
 | `show <id>` | Full detail view of one item |
 | `done <id>` | Set status → `resolved` |
 | `archive <id>` | Set status → `archived` |
+| `rename-remote <old> <new>` | Bulk-update `git_remote` across all items |
 
 ### Item statuses
 
