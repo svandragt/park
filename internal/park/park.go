@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+
 var ErrNotFound = errors.New("park item not found")
 
 type Item struct {
@@ -32,6 +33,8 @@ type Store struct {
 func New(db *sql.DB) *Store {
 	return &Store{db: db}
 }
+
+func (s *Store) DB() *sql.DB { return s.db }
 
 func (s *Store) rebuildFTS() error {
 	_, err := s.db.Exec(`INSERT INTO parks_fts(parks_fts) VALUES('rebuild')`)
@@ -216,6 +219,21 @@ func (s *Store) GetLast() (*Item, error) {
 		return nil, ErrNotFound
 	}
 	return &items[0], nil
+}
+
+func (s *Store) Prune(before time.Time) (int64, error) {
+	res, err := s.db.Exec(
+		`DELETE FROM parks WHERE status IN ('resolved','archived') AND updated_at < ?`,
+		before.UTC().Format("2006-01-02 15:04:05"),
+	)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	if n > 0 {
+		_ = s.rebuildFTS()
+	}
+	return n, nil
 }
 
 func (s *Store) Delete(id int64) error {

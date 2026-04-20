@@ -42,7 +42,9 @@ park show -                        # show most recently added item
 park done <id>                     # mark resolved
 park done -                        # resolve most recently added item
 park archive <id>                  # archive
+park reopen <id>                   # move back to active
 park delete <id>                   # hard-delete an item
+park prune --days 30               # hard-delete resolved/archived items older than N days
 park rename-remote <old> <new>     # update remote URL across all items
 ```
 

@@ -20,8 +20,8 @@ Set `PARK_DB=/path/to/park.db` to override the default database location (`~/.lo
 
 - **`main.go`** — resolves DB path (env `PARK_DB` → XDG → `~/.local/share/park/park.db`), opens DB, dispatches subcommands
 - **`internal/db`** — opens the SQLite connection (WAL mode, foreign keys on) and runs the schema migration inline
-- **`internal/park`** — `Store` wraps `*sql.DB`; all SQL lives here (`Add`, `List`, `Get`, `SetStatus`, `Delete`)
-- **`cmd/`** — one file per subcommand (`add`, `list`, `show`, `done`/`archive`, `delete`); each `Run*` function parses its own flags
+- **`internal/park`** — `Store` wraps `*sql.DB`; all SQL lives here (`Add`, `List`, `Get`, `SetStatus`, `Delete`, `Prune`)
+- **`cmd/`** — one file per subcommand (`add`, `list`, `show`, `done`/`archive`/`reopen`, `delete`, `prune`); each `Run*` function parses its own flags
 
 ### Subcommands
 
@@ -34,7 +34,9 @@ Set `PARK_DB=/path/to/park.db` to override the default database location (`~/.lo
 | `show <id>` | Full detail view of one item |
 | `done <id>` | Set status → `resolved` |
 | `archive <id>` | Set status → `archived` |
+| `reopen <id>` | Set status → `active` (reverse done/archive) |
 | `delete <id>` | Hard-delete an item from the database |
+| `prune` | Hard-delete resolved/archived items older than `--days` (default 30) |
 | `rename-remote <old> <new>` | Bulk-update `git_remote` across all items |
 
 ### Item statuses
