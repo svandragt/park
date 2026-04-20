@@ -40,6 +40,20 @@ CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY);
 	}
 
 	var applied int
+	db.QueryRow(`SELECT count(*) FROM migrations WHERE name='normalize_ssh_remotes'`).Scan(&applied)
+	if applied == 0 {
+		if _, err := db.Exec(`
+UPDATE parks
+SET git_remote = 'https://' || REPLACE(REPLACE(SUBSTR(git_remote, 5), ':', '/'), '.git', '')
+WHERE git_remote LIKE 'git@%'
+`); err != nil {
+			return err
+		}
+		if _, err := db.Exec(`INSERT INTO migrations VALUES('normalize_ssh_remotes')`); err != nil {
+			return err
+		}
+	}
+
 	db.QueryRow(`SELECT count(*) FROM migrations WHERE name='fts5_init'`).Scan(&applied)
 	if applied == 0 {
 		if _, err := db.Exec(`DROP TABLE IF EXISTS parks_fts`); err != nil {

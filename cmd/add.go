@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/svandragt/park/internal/park"
@@ -57,10 +56,3 @@ func RunAdd(store *park.Store, args []string) error {
 	return nil
 }
 
-func gitOutput(args ...string) string {
-	out, err := exec.Command("git", args...).Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}

@@ -84,7 +84,7 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 		query += ` AND (',' || tags || ',' LIKE ?)`
 		args = append(args, "%,"+f.Tag+",%")
 	}
-	query += ` ORDER BY created_at DESC`
+	query += ` ORDER BY created_at DESC, id DESC`
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -205,6 +205,17 @@ func (s *Store) UpdateRemote(oldURL, newURL string) (int64, error) {
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+func (s *Store) GetLast() (*Item, error) {
+	items, err := s.List(ListFilter{})
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, ErrNotFound
+	}
+	return &items[0], nil
 }
 
 func (s *Store) SetStatus(id int64, status string) error {

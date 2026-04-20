@@ -13,9 +13,15 @@ func RunList(store *park.Store, args []string) error {
 	remote := fs.String("remote", "", "filter by git remote URL")
 	branch := fs.String("branch", "", "filter by branch name")
 	tag := fs.String("tag", "", "filter by tag")
+	current := fs.Bool("current", false, "filter by current git remote and branch")
 
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+
+	if *current {
+		*remote = gitOutput("remote", "get-url", "origin")
+		*branch = gitOutput("branch", "--show-current")
 	}
 
 	filterStatus := *status
@@ -25,7 +31,7 @@ func RunList(store *park.Store, args []string) error {
 
 	items, err := store.List(park.ListFilter{
 		Status: filterStatus,
-		Remote: normalizeURL(*remote),
+		Remote: normalizeRemote(*remote),
 		Branch: *branch,
 		Tag:    *tag,
 	})

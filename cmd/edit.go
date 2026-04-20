@@ -3,7 +3,6 @@ package cmd
 import (
 	"flag"
 	"fmt"
-	"strconv"
 
 	"github.com/svandragt/park/internal/park"
 )
@@ -12,9 +11,9 @@ func RunEdit(store *park.Store, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: park edit <id> [flags]")
 	}
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseID(store, args[0])
 	if err != nil {
-		return fmt.Errorf("invalid id: %s", args[0])
+		return err
 	}
 
 	fs := flag.NewFlagSet("edit", flag.ContinueOnError)

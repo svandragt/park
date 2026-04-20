@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/svandragt/park/internal/park"
 )
@@ -19,9 +18,9 @@ func setStatus(store *park.Store, args []string, status string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: park %s <id>", status)
 	}
-	id, err := strconv.ParseInt(args[0], 10, 64)
+	id, err := parseID(store, args[0])
 	if err != nil {
-		return fmt.Errorf("invalid id: %s", args[0])
+		return err
 	}
 	if err := store.SetStatus(id, status); err != nil {
 		return err

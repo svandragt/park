@@ -34,7 +34,17 @@ func resolveRemote(rawURL string) string {
 	if final != httpsURL {
 		return final
 	}
-	return rawURL
+	return httpsURL
+}
+
+func normalizeRemote(u string) string {
+	if u == "" {
+		return ""
+	}
+	if s := sshToHTTPS(u); s != "" {
+		return s
+	}
+	return normalizeURL(u)
 }
 
 // sshToHTTPS converts git@host:org/repo to https://host/org/repo.
