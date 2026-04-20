@@ -45,6 +45,7 @@ park archive <id>                  # archive
 park reopen <id>                   # move back to active
 park delete <id>                   # hard-delete an item
 park prune --days 30               # hard-delete resolved/archived items older than N days
+park migrate <dest-dir>            # copy DB to new location, print PARK_DB export line
 park rename-remote <old> <new>     # update remote URL across all items
 ```
 
