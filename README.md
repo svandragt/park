@@ -31,13 +31,16 @@ go install github.com/svandragt/park@latest
 park add --name "fix auth bug" --desc "Session token issue" --body "..." --why "Blocks release" --how "Start at auth.go:42"
 park edit <id> --body "updated context" --tags "auth,urgent"
 park list                          # active items
+park list --current                # scope to current git remote + branch
 park list --status resolved        # resolved items
-park list --remote github.com/org/repo  # filter by repo
+park list --remote github.com/org/repo  # filter by repo (SSH or HTTPS format)
 park list --branch main            # filter by branch
 park list --tag auth               # filter by tag
 park search "JWT"                  # full-text search (porter stemming)
 park show <id>                     # full detail
+park show -                        # show most recently added item
 park done <id>                     # mark resolved
+park done -                        # resolve most recently added item
 park archive <id>                  # archive
 park rename-remote <old> <new>     # update remote URL across all items
 ```
