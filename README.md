@@ -2,6 +2,12 @@
 
 A CLI tool for saving and recalling work context, backed by SQLite.
 
+**You're mid-debug when a colleague asks for urgent help.** Park where you are, context-switch, come back and pick up exactly where you left off — right file, right line, right next step.
+
+**You're juggling three repos.** `park list` shows everything active across all of them. `park list --remote github.com/org/repo` scopes it to one.
+
+**You context-switch between machines.** Point `PARK_DB` at a synced folder (Syncthing, Dropbox) and your parked items follow you.
+
 ## Install
 
 ```bash
