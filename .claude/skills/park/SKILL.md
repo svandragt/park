@@ -1,7 +1,7 @@
 ---
 name: park
 version: 1.0.0
-description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N'."
+description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'."
 author: svandragt
 ---
 
@@ -13,8 +13,9 @@ Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.d
 
 1. When the user says "park this/that/something" or wants to save context for later, extract metadata from the current conversation and run `park add`.
 2. Never ask for confirmation before parking — extract and run immediately, then report the ID.
-3. When the user asks to see what's parked, run `park list`.
+3. When the user asks to see what's parked, auto-detect the current git remote (`git remote get-url origin 2>/dev/null`) and pass it via `--remote` to scope results to the current project. If no remote exists, run `park list` without a filter.
 4. When the user marks something done/resolved, run `park done <id>`.
+5. When the user wants to work on, resume, or unpark an item, run `park show <id>` and present the full context (body, why, how) so they can pick up immediately.
 
 ## Parking: extract these fields from conversation context
 

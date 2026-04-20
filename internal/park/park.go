@@ -94,6 +94,14 @@ func (s *Store) Get(id int64) (*Item, error) {
 	return &it, nil
 }
 
+func (s *Store) UpdateRemote(oldURL, newURL string) (int64, error) {
+	res, err := s.db.Exec(`UPDATE parks SET git_remote = ?, updated_at = CURRENT_TIMESTAMP WHERE git_remote = ?`, newURL, oldURL)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (s *Store) SetStatus(id int64, status string) error {
 	res, err := s.db.Exec(`UPDATE parks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, status, id)
 	if err != nil {

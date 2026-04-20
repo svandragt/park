@@ -44,7 +44,7 @@ func run() error {
 	store := park.New(database)
 
 	if len(os.Args) < 2 {
-		return fmt.Errorf("usage: park <add|list|show|done|archive> [flags]")
+		return fmt.Errorf("usage: park <add|list|show|done|archive|rename-remote> [flags]")
 	}
 
 	sub := os.Args[1]
@@ -61,6 +61,8 @@ func run() error {
 		return cmd.RunDone(store, args)
 	case "archive":
 		return cmd.RunArchive(store, args)
+	case "rename-remote":
+		return cmd.RunRenameRemote(store, args)
 	default:
 		return fmt.Errorf("unknown command: %s", sub)
 	}

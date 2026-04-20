@@ -28,8 +28,14 @@ func RunAdd(store *park.Store, args []string) error {
 	}
 
 	device, _ := os.Hostname()
-	remote := gitOutput("remote", "get-url", "origin")
-	remote = strings.TrimSuffix(remote, ".git")
+	rawRemote := gitOutput("remote", "get-url", "origin")
+	rawRemote = strings.TrimSuffix(rawRemote, ".git")
+	remote := resolveRemote(rawRemote)
+	if remote != rawRemote && rawRemote != "" {
+		if n, err := store.UpdateRemote(rawRemote, remote); err == nil && n > 0 {
+			fmt.Printf("remote renamed: %s → %s (%d item(s) updated)\n", rawRemote, remote, n)
+		}
+	}
 	branch := gitOutput("branch", "--show-current")
 
 	id, err := store.Add(park.Item{
