@@ -20,9 +20,13 @@ go install github.com/svandragt/park@latest
 
 ```bash
 park add --name "fix auth bug" --desc "Session token issue" --body "..." --why "Blocks release" --how "Start at auth.go:42"
+park edit <id> --body "updated context" --tags "auth,urgent"
 park list                          # active items
 park list --status resolved        # resolved items
 park list --remote github.com/org/repo  # filter by repo
+park list --branch main            # filter by branch
+park list --tag auth               # filter by tag
+park search "JWT"                  # full-text search (porter stemming)
 park show <id>                     # full detail
 park done <id>                     # mark resolved
 park archive <id>                  # archive

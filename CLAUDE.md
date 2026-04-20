@@ -28,7 +28,9 @@ Set `PARK_DB=/path/to/park.db` to override the default database location (`~/.lo
 | Command | Action |
 |---|---|
 | `add` | Insert a new item; auto-captures hostname, `git remote`, and current branch |
-| `list` / `ls` | List items filtered by `--status` (default: `active`) and optional `--remote` |
+| `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`) |
+| `list` / `ls` | List items filtered by `--status`, `--remote`, `--branch`, `--tag` (default status: `active`) |
+| `search <keyword>` | Full-text search across name, description, body, why, how-to-apply, tags (FTS5, porter stemming) |
 | `show <id>` | Full detail view of one item |
 | `done <id>` | Set status → `resolved` |
 | `archive <id>` | Set status → `archived` |
