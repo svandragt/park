@@ -218,6 +218,19 @@ func (s *Store) GetLast() (*Item, error) {
 	return &items[0], nil
 }
 
+func (s *Store) Delete(id int64) error {
+	res, err := s.db.Exec(`DELETE FROM parks WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	_ = s.rebuildFTS()
+	return nil
+}
+
 func (s *Store) SetStatus(id int64, status string) error {
 	res, err := s.db.Exec(`UPDATE parks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, status, id)
 	if err != nil {
