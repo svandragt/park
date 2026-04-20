@@ -33,6 +33,11 @@ func New(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
+func (s *Store) rebuildFTS() error {
+	_, err := s.db.Exec(`INSERT INTO parks_fts(parks_fts) VALUES('rebuild')`)
+	return err
+}
+
 func (s *Store) Add(item Item) (int64, error) {
 	res, err := s.db.Exec(`
 INSERT INTO parks (name, description, type, body, why, how_to_apply, git_remote, branch, tags, device)
@@ -44,7 +49,12 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	if err != nil {
 		return 0, err
 	}
-	return res.LastInsertId()
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	_ = s.rebuildFTS()
+	return id, nil
 }
 
 type ListFilter struct {
@@ -81,7 +91,25 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 		return nil, err
 	}
 	defer rows.Close()
+	return scanRows(rows)
+}
 
+func (s *Store) Search(keyword string) ([]Item, error) {
+	rows, err := s.db.Query(`
+SELECT p.id, p.name, p.description, p.type, p.body, p.why, p.how_to_apply,
+       p.git_remote, p.branch, p.tags, p.status, p.device, p.created_at, p.updated_at
+FROM parks_fts f
+JOIN parks p ON p.id = f.rowid
+WHERE parks_fts MATCH ?
+ORDER BY bm25(parks_fts)`, keyword)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanRows(rows)
+}
+
+func scanRows(rows *sql.Rows) ([]Item, error) {
 	var items []Item
 	for rows.Next() {
 		var it Item
@@ -167,6 +195,7 @@ func (s *Store) Update(id int64, f UpdateFields) error {
 	if n == 0 {
 		return ErrNotFound
 	}
+	_ = s.rebuildFTS()
 	return nil
 }
 
@@ -187,5 +216,6 @@ func (s *Store) SetStatus(id int64, status string) error {
 	if n == 0 {
 		return ErrNotFound
 	}
+	_ = s.rebuildFTS()
 	return nil
 }

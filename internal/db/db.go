@@ -17,7 +17,7 @@ func Open(path string) (*sql.DB, error) {
 }
 
 func migrate(db *sql.DB) error {
-	_, err := db.Exec(`
+	if _, err := db.Exec(`
 CREATE TABLE IF NOT EXISTS parks (
 	id           INTEGER PRIMARY KEY,
 	name         TEXT NOT NULL,
@@ -34,6 +34,31 @@ CREATE TABLE IF NOT EXISTS parks (
 	created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-`)
-	return err
+CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY);
+`); err != nil {
+		return err
+	}
+
+	var applied int
+	db.QueryRow(`SELECT count(*) FROM migrations WHERE name='fts5_init'`).Scan(&applied)
+	if applied == 0 {
+		if _, err := db.Exec(`DROP TABLE IF EXISTS parks_fts`); err != nil {
+			return err
+		}
+		if _, err := db.Exec(`
+CREATE VIRTUAL TABLE parks_fts USING fts5(
+	name, description, body, why, how_to_apply, tags,
+	content='parks', content_rowid='id',
+	tokenize='porter unicode61'
+)`); err != nil {
+			return err
+		}
+		if _, err := db.Exec(`INSERT INTO parks_fts(parks_fts) VALUES('rebuild')`); err != nil {
+			return err
+		}
+		if _, err := db.Exec(`INSERT INTO migrations VALUES('fts5_init')`); err != nil {
+			return err
+		}
+	}
+	return nil
 }

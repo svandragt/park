@@ -44,7 +44,7 @@ func run() error {
 	store := park.New(database)
 
 	if len(os.Args) < 2 {
-		return fmt.Errorf("usage: park <add|edit|list|show|done|archive|rename-remote> [flags]")
+		return fmt.Errorf("usage: park <add|edit|list|search|show|done|archive|rename-remote> [flags]")
 	}
 
 	sub := os.Args[1]
@@ -55,6 +55,8 @@ func run() error {
 		return cmd.RunAdd(store, args)
 	case "edit":
 		return cmd.RunEdit(store, args)
+	case "search":
+		return cmd.RunSearch(store, args)
 	case "list", "ls":
 		return cmd.RunList(store, args)
 	case "show":
