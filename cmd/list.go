@@ -21,7 +21,7 @@ func RunList(store *park.Store, args []string) error {
 		filterStatus = ""
 	}
 
-	items, err := store.List(filterStatus, *remote)
+	items, err := store.List(filterStatus, normalizeURL(*remote))
 	if err != nil {
 		return err
 	}
