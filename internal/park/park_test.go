@@ -92,6 +92,78 @@ func TestDelete_NotFound(t *testing.T) {
 	}
 }
 
+func TestSearch_FilterByTag(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: "tagged", Tags: "auth,urgent"})
+	s.Add(park.Item{Name: "untagged"})
+
+	results, err := s.Search("tagged", park.ListFilter{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result without tag filter, got %d", len(results))
+	}
+
+	results, err = s.Search("tagged", park.ListFilter{Tag: "auth"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 || results[0].Name != "tagged" {
+		t.Errorf("expected 1 match for tag=auth, got %d", len(results))
+	}
+
+	results, err = s.Search("tagged", park.ListFilter{Tag: "missing"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for non-matching tag, got %d", len(results))
+	}
+}
+
+func TestSearch_FilterByType(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: "a bug item", Type: "bug"})
+	s.Add(park.Item{Name: "a feature item", Type: "feature"})
+
+	results, err := s.Search("item", park.ListFilter{Type: "bug"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 || results[0].Type != "bug" {
+		t.Errorf("expected 1 bug result, got %d", len(results))
+	}
+}
+
+func TestSearch_FilterByRemote(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: "repo item", GitRemote: "https://github.com/org/repo"})
+	s.Add(park.Item{Name: "other item", GitRemote: "https://github.com/org/other"})
+
+	results, err := s.Search("item", park.ListFilter{Remote: "https://github.com/org/repo"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 || results[0].GitRemote != "https://github.com/org/repo" {
+		t.Errorf("expected 1 result for remote filter, got %d", len(results))
+	}
+}
+
+func TestSearch_FilterByBranch(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: "main branch item", Branch: "main"})
+	s.Add(park.Item{Name: "feat branch item", Branch: "feature/x"})
+
+	results, err := s.Search("item", park.ListFilter{Branch: "main"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 || results[0].Branch != "main" {
+		t.Errorf("expected 1 result for branch filter, got %d", len(results))
+	}
+}
+
 func TestGetLast_ReturnsMostRecent(t *testing.T) {
 	s := newTestStore(t)
 	s.Add(park.Item{Name: "first"})
