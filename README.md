@@ -8,7 +8,7 @@ A CLI tool for saving and recalling human work context, backed by SQLite. (priva
 
 **You context-switch between machines.** Point `PARK_DB` at a synced folder (Syncthing, Dropbox) and your parked items follow you.
 
-**Your AI assistant's context window is filling up.** Park the current task so the next session can pick up exactly where you left off, without re-explaining everything.
+**Your AI assistant's context window is filling up, or you switch between multiple assistants.** Park the current task so the next session can pick up exactly where you left off, without re-explaining everything.
 
 ## How is park different?
 
