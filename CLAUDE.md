@@ -22,12 +22,13 @@ Set `PARK_DB=/path/to/park.db` to override the default database location (`~/.lo
 - **`internal/db`** — opens the SQLite connection (WAL mode, foreign keys on) and runs the schema migration inline
 - **`internal/park`** — `Store` wraps `*sql.DB`; all SQL lives here (`Add`, `List`, `Get`, `SetStatus`, `Delete`, `Prune`)
 - **`cmd/`** — one file per subcommand (`add`, `list`, `show`, `done`/`archive`/`reopen`, `delete`, `prune`, `migrate`); each `Run*` function parses its own flags
+- **`cmd/vcs.go`** — VCS-neutral `currentRemote` / `currentBranch` helpers; tries git first (`cmd/git.go`) then jj (`cmd/jj.go`). Branch fallback uses `jj log -r 'heads(::@ & bookmarks())'` to pick the nearest bookmark; remote fallback parses `jj git remote list`
 
 ### Subcommands
 
 | Command | Action |
 |---|---|
-| `add` | Insert a new item; auto-captures hostname, `git remote`, and current branch |
+| `add` | Insert a new item; auto-captures hostname, remote, and current branch (git first, jj bookmark fallback) |
 | `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`) |
 | `list` / `ls` | List items filtered by `--status`, `--remote`, `--branch`, `--tag`, `--type` (default status: `active`); shows tags inline |
 | `search <keyword>` | Full-text search across name, description, body, why, how-to-apply, tags (FTS5, porter stemming); supports `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--current` filters (default status: `active`) |

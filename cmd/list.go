@@ -21,8 +21,8 @@ func RunList(store *park.Store, args []string) error {
 	}
 
 	if *current {
-		*remote = gitOutput("remote", "get-url", "origin")
-		*branch = gitOutput("branch", "--show-current")
+		*remote = currentRemote()
+		*branch = currentBranch()
 	}
 
 	filterStatus := *status

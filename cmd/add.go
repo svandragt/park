@@ -27,7 +27,7 @@ func RunAdd(store *park.Store, args []string) error {
 	}
 
 	device, _ := os.Hostname()
-	rawRemote := gitOutput("remote", "get-url", "origin")
+	rawRemote := currentRemote()
 	rawRemote = strings.TrimSuffix(rawRemote, ".git")
 	remote := resolveRemote(rawRemote)
 	if remote != rawRemote && rawRemote != "" {
@@ -35,7 +35,7 @@ func RunAdd(store *park.Store, args []string) error {
 			fmt.Printf("remote renamed: %s → %s (%d item(s) updated)\n", rawRemote, remote, n)
 		}
 	}
-	branch := gitOutput("branch", "--show-current")
+	branch := currentBranch()
 
 	id, err := store.Add(park.Item{
 		Name:        *name,

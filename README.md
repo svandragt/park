@@ -55,9 +55,12 @@ park migrate <dest-dir>            # copy DB to new location, print PARK_DB expo
 park rename-remote <old> <new>     # update remote URL across all items
 ```
 
-`add` automatically captures hostname, git remote, and current branch. If the
-remote has been renamed (e.g. a GitHub repo rename), `add` detects the redirect
-and updates all existing items to the canonical URL automatically.
+`add` automatically captures hostname, remote, and current branch. Both git and
+[jj](https://jj-vcs.github.io/) repos are supported: git is tried first, with a
+jj fallback (nearest bookmark for branch, `jj git remote list` for remote) so
+non-colocated jj repos and jj changes without a git branch also get populated.
+If the remote has been renamed (e.g. a GitHub repo rename), `add` detects the
+redirect and updates all existing items to the canonical URL automatically.
 
 ## Configuration
 

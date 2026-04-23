@@ -26,8 +26,8 @@ func RunSearch(store *park.Store, args []string) error {
 	keyword := strings.Join(fs.Args(), " ")
 
 	if *current {
-		*remote = gitOutput("remote", "get-url", "origin")
-		*branch = gitOutput("branch", "--show-current")
+		*remote = currentRemote()
+		*branch = currentBranch()
 	}
 
 	filterStatus := *status
