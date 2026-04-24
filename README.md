@@ -30,6 +30,7 @@ go install github.com/svandragt/park@latest
 ```bash
 park add --name "fix auth bug" --desc "Session token issue" --body "..." --why "Blocks release" --how "Start at auth.go:42"
 park edit <id> --body "updated context" --tags "auth,urgent"
+park edit <id> --status resolved   # equivalent to park done <id>
 park list                          # active items
 park list --current                # scope to current git remote + branch
 park list --status resolved        # resolved items

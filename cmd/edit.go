@@ -24,12 +24,14 @@ func RunEdit(store *park.Store, args []string) error {
 	how := fs.String("how", "", "new how-to-apply")
 	tags := fs.String("tags", "", "new tags")
 	typ := fs.String("type", "", "new type")
+	status := fs.String("status", "", "new status (active/resolved/archived)")
 
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
 
 	f := park.UpdateFields{}
+	statusSet := false
 	fs.Visit(func(fl *flag.Flag) {
 		switch fl.Name {
 		case "name":
@@ -46,11 +48,26 @@ func RunEdit(store *park.Store, args []string) error {
 			f.Tags = tags
 		case "type":
 			f.Type = typ
+		case "status":
+			statusSet = true
 		}
 	})
 
+	if statusSet {
+		switch *status {
+		case "active", "resolved", "archived":
+		default:
+			return fmt.Errorf("invalid status %q (want active/resolved/archived)", *status)
+		}
+	}
+
 	if err := store.Update(id, f); err != nil {
 		return err
+	}
+	if statusSet {
+		if err := store.SetStatus(id, *status); err != nil {
+			return err
+		}
 	}
 	fmt.Printf("#%d updated\n", id)
 	return nil
