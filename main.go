@@ -18,6 +18,14 @@ func main() {
 }
 
 func run() error {
+	if len(os.Args) < 2 {
+		return cmd.RunHelp(nil)
+	}
+	switch os.Args[1] {
+	case "help", "--help", "-h":
+		return cmd.RunHelp(os.Args[2:])
+	}
+
 	dbPath := os.Getenv("PARK_DB")
 	if dbPath == "" {
 		dataHome := os.Getenv("XDG_DATA_HOME")
@@ -42,10 +50,6 @@ func run() error {
 	defer database.Close()
 
 	store := park.New(database)
-
-	if len(os.Args) < 2 {
-		return fmt.Errorf("usage: park <add|edit|list|search|show|done|archive|reopen|delete|prune|migrate|rename-remote> [flags]")
-	}
 
 	sub := os.Args[1]
 	args := os.Args[2:]
@@ -76,6 +80,6 @@ func run() error {
 	case "rename-remote":
 		return cmd.RunRenameRemote(store, args)
 	default:
-		return fmt.Errorf("unknown command: %s", sub)
+		return fmt.Errorf("unknown command: %s (run 'park help')", sub)
 	}
 }

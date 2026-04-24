@@ -40,6 +40,7 @@ Set `PARK_DB=/path/to/park.db` to override the default database location (`~/.lo
 | `prune` | Hard-delete resolved/archived items older than `--days` (default 30) |
 | `migrate <dest-dir>` | Copy DB to a new directory and print the `PARK_DB` export line |
 | `rename-remote <old> <new>` | Bulk-update `git_remote` across all items |
+| `help` / `--help` / `-h` | Print top-level usage; handled before DB open |
 
 ### Item statuses
 
