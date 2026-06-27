@@ -79,6 +79,8 @@ func run() error {
 		return cmd.RunMigrate(dbPath, args)
 	case "rename-remote":
 		return cmd.RunRenameRemote(store, args)
+	case "serve":
+		return cmd.RunServe(store, args)
 	default:
 		return fmt.Errorf("unknown command: %s (run 'park help')", sub)
 	}

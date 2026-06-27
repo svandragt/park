@@ -92,7 +92,7 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 		query += ` AND type = ?`
 		args = append(args, f.Type)
 	}
-	query += ` ORDER BY created_at DESC, id DESC`
+	query += ` ORDER BY updated_at DESC, id DESC`
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
