@@ -10,7 +10,7 @@ func TestHelpText_ListsAllSubcommands(t *testing.T) {
 	for _, name := range []string{
 		"add", "edit", "list", "search", "show",
 		"done", "archive", "reopen", "delete",
-		"prune", "migrate", "rename-remote", "help",
+		"prune", "migrate", "rename-remote", "hook", "help",
 	} {
 		if !strings.Contains(out, name) {
 			t.Errorf("HelpText() missing subcommand %q", name)

@@ -3,6 +3,7 @@ package cmd
 import (
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/svandragt/park/internal/park"
 )
@@ -44,18 +45,25 @@ func RunList(store *park.Store, args []string) error {
 		fmt.Println("no parked items")
 		return nil
 	}
+	fmt.Print(formatItems(items))
+	return nil
+}
+
+// formatItems renders the one-per-item summary used by list and the session hook.
+func formatItems(items []park.Item) string {
+	var b strings.Builder
 	for _, it := range items {
-		fmt.Printf("#%d  [%s]  %s\n", it.ID, it.Status, it.Name)
+		fmt.Fprintf(&b, "#%d  [%s]  %s\n", it.ID, it.Status, it.Name)
 		if it.Description != "" {
-			fmt.Printf("     %s\n", it.Description)
+			fmt.Fprintf(&b, "     %s\n", it.Description)
 		}
 		if it.Remote != "" {
-			fmt.Printf("     %s  (%s)\n", it.Remote, it.Branch)
+			fmt.Fprintf(&b, "     %s  (%s)\n", it.Remote, it.Branch)
 		}
 		if it.Tags != "" {
-			fmt.Printf("     tags: %s\n", it.Tags)
+			fmt.Fprintf(&b, "     tags: %s\n", it.Tags)
 		}
-		fmt.Println()
+		b.WriteString("\n")
 	}
-	return nil
+	return b.String()
 }

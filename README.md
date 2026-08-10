@@ -80,6 +80,30 @@ cp .claude/skills/park/SKILL.md ~/.claude/skills/park/SKILL.md
 
 Once installed, Claude will recognize park-related phrases and call the `park` CLI automatically.
 
+### Surface parked items at session start
+
+`park list` only gets run when you already suspect something is parked. To make the
+agent tell you instead, install a `SessionStart` hook:
+
+```bash
+park hook --install
+```
+
+This adds `park hook run` to `~/.claude/settings.json` (Claude Code) and
+`~/.codex/hooks.json` (Codex), for whichever of the two exists. Both agents use the same
+hook format. Run `park hook` on its own to print the config block without writing anything,
+or pass `--agent claude`, `--agent codex`, or `--settings <path>` to target one file.
+
+At the start of each session, `park hook run` reads the session's working directory,
+resolves its git remote, and injects that repo's active items as session context. You also
+see a short summary of the parked items, so you know the hook ran. It
+prints nothing when there is no remote, no database, or nothing parked — a session that
+opens with a hook error is worse than one with no hook.
+
+The installer merges into any existing `SessionStart` hooks rather than replacing them.
+Hooks load at session start, so the change takes effect next session; in Claude Code,
+`/hooks` forces a reload.
+
 ## Build
 
 ```bash

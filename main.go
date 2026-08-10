@@ -43,6 +43,12 @@ func run() error {
 		dbPath = filepath.Join(dir, "park.db")
 	}
 
+	// hook runs before the DB is opened: 'hook run' must stay silent on every
+	// failure path, including an unopenable DB.
+	if os.Args[1] == "hook" {
+		return cmd.RunHook(dbPath, os.Args[2:])
+	}
+
 	database, err := db.Open(dbPath)
 	if err != nil {
 		return err
