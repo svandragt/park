@@ -17,7 +17,7 @@ type Item struct {
 	Body        string
 	Why         string
 	HowToApply  string
-	GitRemote   string
+	Remote   string
 	Branch      string
 	Tags        string
 	Status      string
@@ -43,10 +43,10 @@ func (s *Store) rebuildFTS() error {
 
 func (s *Store) Add(item Item) (int64, error) {
 	res, err := s.db.Exec(`
-INSERT INTO parks (name, description, type, body, why, how_to_apply, git_remote, branch, tags, device)
+INSERT INTO parks (name, description, type, body, why, how_to_apply, remote, branch, tags, device)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		item.Name, item.Description, item.Type, item.Body,
-		item.Why, item.HowToApply, item.GitRemote, item.Branch,
+		item.Why, item.HowToApply, item.Remote, item.Branch,
 		item.Tags, item.Device,
 	)
 	if err != nil {
@@ -69,7 +69,7 @@ type ListFilter struct {
 }
 
 func (s *Store) List(f ListFilter) ([]Item, error) {
-	query := `SELECT id, name, description, type, body, why, how_to_apply, git_remote, branch, tags, status, device, created_at, updated_at FROM parks WHERE 1=1`
+	query := `SELECT id, name, description, type, body, why, how_to_apply, remote, branch, tags, status, device, created_at, updated_at FROM parks WHERE 1=1`
 	args := []any{}
 
 	if f.Status != "" {
@@ -77,7 +77,7 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 		args = append(args, f.Status)
 	}
 	if f.Remote != "" {
-		query += ` AND git_remote = ?`
+		query += ` AND remote = ?`
 		args = append(args, f.Remote)
 	}
 	if f.Branch != "" {
@@ -105,7 +105,7 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 func (s *Store) Search(keyword string, f ListFilter) ([]Item, error) {
 	query := `
 SELECT p.id, p.name, p.description, p.type, p.body, p.why, p.how_to_apply,
-       p.git_remote, p.branch, p.tags, p.status, p.device, p.created_at, p.updated_at
+       p.remote, p.branch, p.tags, p.status, p.device, p.created_at, p.updated_at
 FROM parks_fts f
 JOIN parks p ON p.id = f.rowid
 WHERE parks_fts MATCH ?`
@@ -115,7 +115,7 @@ WHERE parks_fts MATCH ?`
 		args = append(args, f.Status)
 	}
 	if f.Remote != "" {
-		query += ` AND p.git_remote = ?`
+		query += ` AND p.remote = ?`
 		args = append(args, f.Remote)
 	}
 	if f.Branch != "" {
@@ -144,7 +144,7 @@ func scanRows(rows *sql.Rows) ([]Item, error) {
 	for rows.Next() {
 		var it Item
 		if err := rows.Scan(&it.ID, &it.Name, &it.Description, &it.Type, &it.Body,
-			&it.Why, &it.HowToApply, &it.GitRemote, &it.Branch, &it.Tags,
+			&it.Why, &it.HowToApply, &it.Remote, &it.Branch, &it.Tags,
 			&it.Status, &it.Device, &it.CreatedAt, &it.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -154,10 +154,10 @@ func scanRows(rows *sql.Rows) ([]Item, error) {
 }
 
 func (s *Store) Get(id int64) (*Item, error) {
-	row := s.db.QueryRow(`SELECT id, name, description, type, body, why, how_to_apply, git_remote, branch, tags, status, device, created_at, updated_at FROM parks WHERE id = ?`, id)
+	row := s.db.QueryRow(`SELECT id, name, description, type, body, why, how_to_apply, remote, branch, tags, status, device, created_at, updated_at FROM parks WHERE id = ?`, id)
 	var it Item
 	if err := row.Scan(&it.ID, &it.Name, &it.Description, &it.Type, &it.Body,
-		&it.Why, &it.HowToApply, &it.GitRemote, &it.Branch, &it.Tags,
+		&it.Why, &it.HowToApply, &it.Remote, &it.Branch, &it.Tags,
 		&it.Status, &it.Device, &it.CreatedAt, &it.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -230,7 +230,7 @@ func (s *Store) Update(id int64, f UpdateFields) error {
 }
 
 func (s *Store) UpdateRemote(oldURL, newURL string) (int64, error) {
-	res, err := s.db.Exec(`UPDATE parks SET git_remote = ?, updated_at = CURRENT_TIMESTAMP WHERE git_remote = ?`, newURL, oldURL)
+	res, err := s.db.Exec(`UPDATE parks SET remote = ?, updated_at = CURRENT_TIMESTAMP WHERE remote = ?`, newURL, oldURL)
 	if err != nil {
 		return 0, err
 	}

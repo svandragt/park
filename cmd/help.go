@@ -19,7 +19,7 @@ Commands:
   delete <id>      Hard-delete an item
   prune            Hard-delete resolved/archived items older than --days (default 30)
   migrate <dir>    Copy the DB to a new directory
-  rename-remote    Bulk-update git_remote across all items (old → new)
+  rename-remote    Bulk-update remote across all items (old → new)
   serve            Start a web UI to browse parked items (--addr, default 127.0.0.1:7654)
   help             Show this help (also --help, -h)
 

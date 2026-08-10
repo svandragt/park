@@ -49,8 +49,8 @@ func RunList(store *park.Store, args []string) error {
 		if it.Description != "" {
 			fmt.Printf("     %s\n", it.Description)
 		}
-		if it.GitRemote != "" {
-			fmt.Printf("     %s  (%s)\n", it.GitRemote, it.Branch)
+		if it.Remote != "" {
+			fmt.Printf("     %s  (%s)\n", it.Remote, it.Branch)
 		}
 		if it.Tags != "" {
 			fmt.Printf("     tags: %s\n", it.Tags)

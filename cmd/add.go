@@ -45,7 +45,7 @@ func RunAdd(store *park.Store, args []string) error {
 		Why:         *why,
 		HowToApply:  *how,
 		Tags:        *tags,
-		GitRemote:   remote,
+		Remote:   remote,
 		Branch:      branch,
 		Device:      device,
 	})

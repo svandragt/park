@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS parks (
 	body         TEXT NOT NULL DEFAULT '',
 	why          TEXT NOT NULL DEFAULT '',
 	how_to_apply TEXT NOT NULL DEFAULT '',
-	git_remote   TEXT NOT NULL DEFAULT '',
+	remote       TEXT NOT NULL DEFAULT '',
 	branch       TEXT NOT NULL DEFAULT '',
 	tags         TEXT NOT NULL DEFAULT '',
 	status       TEXT NOT NULL DEFAULT 'active',
@@ -39,13 +39,23 @@ CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY);
 		return err
 	}
 
+	// Databases created before the rename still have git_remote; the pragma
+	// check makes this idempotent, so it needs no migrations row.
+	var old int
+	db.QueryRow(`SELECT count(*) FROM pragma_table_info('parks') WHERE name='git_remote'`).Scan(&old)
+	if old > 0 {
+		if _, err := db.Exec(`ALTER TABLE parks RENAME COLUMN git_remote TO remote`); err != nil {
+			return err
+		}
+	}
+
 	var applied int
 	db.QueryRow(`SELECT count(*) FROM migrations WHERE name='normalize_ssh_remotes'`).Scan(&applied)
 	if applied == 0 {
 		if _, err := db.Exec(`
 UPDATE parks
-SET git_remote = 'https://' || REPLACE(REPLACE(SUBSTR(git_remote, 5), ':', '/'), '.git', '')
-WHERE git_remote LIKE 'git@%'
+SET remote = 'https://' || REPLACE(REPLACE(SUBSTR(remote, 5), ':', '/'), '.git', '')
+WHERE remote LIKE 'git@%'
 `); err != nil {
 			return err
 		}

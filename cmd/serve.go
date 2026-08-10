@@ -202,8 +202,8 @@ func serveIndex(w http.ResponseWriter, items []park.Item, status, activeTag, act
 			b.WriteString(`<div class="item-desc">` + html.EscapeString(it.Description) + `</div>`)
 		}
 		meta := []string{}
-		if it.GitRemote != "" {
-			label := strings.TrimPrefix(it.GitRemote, "https://")
+		if it.Remote != "" {
+			label := strings.TrimPrefix(it.Remote, "https://")
 			label = strings.TrimPrefix(label, "git@")
 			label = strings.TrimSuffix(label, ".git")
 			meta = append(meta, html.EscapeString(label))
@@ -249,14 +249,14 @@ func serveDetail(w http.ResponseWriter, it *park.Item) {
 	if it.Tags != "" {
 		b.WriteString(`<div class="field"><span class="field-label">Tags:</span> ` + tagBadges(it.Tags, it.Status) + `</div>`)
 	}
-	if it.GitRemote != "" {
-		b.WriteString(`<div class="field"><span class="field-label">Repo:</span> ` + html.EscapeString(it.GitRemote) + ` · <span class="field-label">Branch:</span> ` + html.EscapeString(it.Branch) + `</div>`)
+	if it.Remote != "" {
+		b.WriteString(`<div class="field"><span class="field-label">Repo:</span> ` + html.EscapeString(it.Remote) + ` · <span class="field-label">Branch:</span> ` + html.EscapeString(it.Branch) + `</div>`)
 	}
 	b.WriteString(`<div class="field item-meta">Device: ` + html.EscapeString(it.Device) + ` · Parked: ` + it.CreatedAt.Format("2006-01-02 15:04") + `</div>`)
 	b.WriteString(`</div>`)
 
-	if it.GitRemote != "" {
-		repoURL := indexURL("all", "", "", it.GitRemote, "")
+	if it.Remote != "" {
+		repoURL := indexURL("all", "", "", it.Remote, "")
 		b.WriteString(`<div class="repo-link"><a href="` + html.EscapeString(repoURL) + `">All items in this repo →</a></div>`)
 	}
 

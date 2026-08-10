@@ -36,8 +36,8 @@ func RunShow(store *park.Store, args []string) error {
 	if it.Tags != "" {
 		fmt.Printf("  Tags: %s", it.Tags)
 	}
-	if it.GitRemote != "" {
-		fmt.Printf("\nRepo: %s  Branch: %s", it.GitRemote, it.Branch)
+	if it.Remote != "" {
+		fmt.Printf("\nRepo: %s  Branch: %s", it.Remote, it.Branch)
 	}
 	fmt.Printf("\nDevice: %s  Parked: %s\n", it.Device, it.CreatedAt.Format("2006-01-02 15:04"))
 	return nil

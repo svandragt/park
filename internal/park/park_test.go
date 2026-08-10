@@ -138,14 +138,14 @@ func TestSearch_FilterByType(t *testing.T) {
 
 func TestSearch_FilterByRemote(t *testing.T) {
 	s := newTestStore(t)
-	s.Add(park.Item{Name: "repo item", GitRemote: "https://github.com/org/repo"})
-	s.Add(park.Item{Name: "other item", GitRemote: "https://github.com/org/other"})
+	s.Add(park.Item{Name: "repo item", Remote: "https://github.com/org/repo"})
+	s.Add(park.Item{Name: "other item", Remote: "https://github.com/org/other"})
 
 	results, err := s.Search("item", park.ListFilter{Remote: "https://github.com/org/repo"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(results) != 1 || results[0].GitRemote != "https://github.com/org/repo" {
+	if len(results) != 1 || results[0].Remote != "https://github.com/org/repo" {
 		t.Errorf("expected 1 result for remote filter, got %d", len(results))
 	}
 }

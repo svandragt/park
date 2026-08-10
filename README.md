@@ -57,10 +57,7 @@ park rename-remote <old> <new>     # update remote URL across all items
 park help                          # show usage (also --help, -h)
 ```
 
-`add` automatically captures hostname, remote, and current branch. Both git and
-[jj](https://docs.jj-vcs.dev/latest/) repos are supported: git is tried first, with a
-jj fallback (nearest bookmark for branch, `jj git remote list` for remote) so
-non-colocated jj repos and jj changes without a git branch also get populated.
+`add` automatically captures hostname, git remote, and current git branch.
 If the remote has been renamed (e.g. a GitHub repo rename), `add` detects the
 redirect and updates all existing items to the canonical URL automatically.
 
