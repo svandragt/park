@@ -19,6 +19,17 @@ Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.d
 6. When the user wants to reopen a resolved/archived item, run `park reopen <id>`.
 7. Parked items surface at session start only if the `SessionStart` hook is installed. If the user is surprised that an item did not surface, or asks how to be reminded automatically, run `park hook --install` and tell them it takes effect next session.
 
+## Proactive parking
+
+When you notice something off-task worth keeping — a latent bug, a stale comment, a "while I was in there" idea — park it instead of derailing the current task or dumping it at the end of a reply. Then carry on.
+
+Two exceptions where you speak up immediately instead of parking:
+
+- **High impact** — data loss, security, money, or it makes the current work wrong.
+- **Urgent** — harder or impossible to act on later: a live incident, a closing window, a release about to ship the fault.
+
+A finding raised mid-task costs attention whether or not it's acted on; a list at the end is worse — too late to act on, too vague to file. Parked, it keeps its context.
+
 ## Parking: extract these fields from conversation context
 
 | Flag | What to extract |
