@@ -23,6 +23,7 @@ Set `PARK_DB=/path/to/park.db` to override the default database location (`~/.lo
 - **`internal/park`** — `Store` wraps `*sql.DB`; all SQL lives here (`Add`, `List`, `Get`, `SetStatus`, `Delete`, `Prune`)
 - **`cmd/`** — one file per subcommand (`add`, `list`, `show`, `done`/`archive`/`reopen`, `delete`, `prune`, `migrate`); each `Run*` function parses its own flags
 - **`cmd/vcs.go`** — `currentRemote` / `currentBranch` helpers over `gitOutput` (`cmd/git.go`)
+- **`cmd/serve.go`** — HTTP handlers and the embedded web UI for `park serve`
 
 ### Subcommands
 
@@ -40,6 +41,7 @@ Set `PARK_DB=/path/to/park.db` to override the default database location (`~/.lo
 | `prune` | Hard-delete resolved/archived items older than `--days` (default 30) |
 | `migrate <dest-dir>` | Copy DB to a new directory and print the `PARK_DB` export line |
 | `rename-remote <old> <new>` | Bulk-update `remote` across all items |
+| `serve` | Start a local web UI (`--addr`, default `127.0.0.1:7654`) with search, repo filter, and clickable tags/types |
 | `hook` | Print the `SessionStart` hook config; `--install` merges it into `~/.claude/settings.json` and `~/.codex/hooks.json`. `hook run` is the hook body: reads the payload on stdin, prints this repo's active items as session context plus a user-visible `systemMessage` summary, silent on every failure |
 | `help` / `--help` / `-h` | Print top-level usage; handled before DB open |
 

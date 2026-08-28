@@ -54,6 +54,8 @@ park delete <id>                   # hard-delete an item
 park prune --days 30               # hard-delete resolved/archived items older than N days
 park migrate <dest-dir>            # copy DB to new location, print PARK_DB export line
 park rename-remote <old> <new>     # update remote URL across all items
+park serve                         # browse items in a web UI (default 127.0.0.1:7654)
+park serve --addr :7654            # listen on a different address
 park help                          # show usage (also --help, -h)
 ```
 
@@ -104,9 +106,24 @@ The installer merges into any existing `SessionStart` hooks rather than replacin
 Hooks load at session start, so the change takes effect next session; in Claude Code,
 `/hooks` forces a reload.
 
+## Web UI
+
+To browse parked items in a browser instead of the terminal, run:
+
+```bash
+park serve
+```
+
+This starts a local server at `http://127.0.0.1:7654` with full-text search, a
+repo filter, and clickable tags and types. Pass `--addr` to change the listen
+address. The server binds to localhost by default, so the UI stays private to
+your machine.
+
 ## Build
 
 ```bash
 go build ./...
 go test ./...
 ```
+
+To cut a release, see [RELEASING.md](RELEASING.md).
