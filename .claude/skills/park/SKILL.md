@@ -18,6 +18,7 @@ Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.d
 5. When the user wants to work on, resume, or unpark an item, run `park show <id>` and present the full context (body, why, how) so they can pick up immediately.
 6. When the user wants to reopen a resolved/archived item, run `park reopen <id>`.
 7. Parked items surface at session start only if the `SessionStart` hook is installed. If the user is surprised that an item did not surface, or asks how to be reminded automatically, run `park hook --install` and tell them it takes effect next session.
+8. Never mention park IDs in anything that leaves this machine — PR descriptions, commit messages, GitHub issues, comments. The park DB is local to the user only, so `#3` means nothing to anyone else. Say "is parked" or "tracked locally" instead. Park IDs are fine in chat replies to the user.
 
 ## Proactive parking
 
