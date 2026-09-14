@@ -6,7 +6,7 @@ A CLI tool for saving and recalling human work context, backed by SQLite. (priva
 
 **You're juggling three repos.** `park list` shows everything active across all of them. `park list --remote github.com/org/repo` scopes it to one.
 
-**You context-switch between machines.** Point `PARK_DB` at a synced folder (Syncthing, Dropbox) and your parked items follow you.
+**You context-switch between machines.** Set `PARK_SYNC_DIR` to a synced folder and your parked items follow you — without the database itself ever being shared. See [Sync across machines](#sync-across-machines).
 
 **Your AI assistant's context window is filling up, or you switch between multiple assistants.** Park the current task so the next session can pick up exactly where you left off, without re-explaining everything.
 
@@ -54,6 +54,8 @@ park delete <id>                   # hard-delete an item
 park prune --days 30               # hard-delete resolved/archived items older than N days
 park migrate <dest-dir>            # copy DB to new location, print PARK_DB export line
 park rename-remote <old> <new>     # update remote URL across all items
+park sync-seed --i-understand-this-runs-once  # one-time: seed the sync log from this machine
+park rebuild --yes                 # rebuild the local database from the sync logs
 park serve                         # browse items in a web UI (default 127.0.0.1:7654)
 park serve --addr :7654            # listen on a different address
 park help                          # show usage (also --help, -h)
@@ -68,6 +70,57 @@ redirect and updates all existing items to the canonical URL automatically.
 | Variable | Default |
 |---|---|
 | `PARK_DB` | `~/.local/share/park/park.db` (XDG-aware) |
+| `PARK_SYNC_DIR` | unset; when set, park writes and reads sync logs there |
+
+## Sync across machines
+
+To use park on more than one machine, give each machine its own log file in a
+shared folder. Set `PARK_SYNC_DIR` to a folder your file syncer keeps in step,
+and leave `PARK_DB` on its local default:
+
+```bash
+export PARK_DB="$HOME/.local/share/park/park.db"
+export PARK_SYNC_DIR="$HOME/sync/park"
+```
+
+Each machine appends its changes to `<hostname>.jsonl` and never writes another
+machine's file, so the syncer has no conflicts to resolve. On each run, park
+folds every log it can see into the local database. Every machine ends up with
+the full set of items.
+
+Set this up once, on the machine that already holds your items:
+
+```bash
+park sync-seed --i-understand-this-runs-once
+```
+
+Run it on exactly one machine. It writes every existing item to that machine's
+log. A second run, or a run on a second machine, duplicates every item under a
+new identifier. The command refuses if this machine's log already has entries.
+
+On every other machine, build the local database from the logs:
+
+```bash
+park rebuild --yes
+```
+
+`rebuild` discards the local database and rebuilds it from the logs alone, so
+run it only when the logs hold everything you want to keep.
+
+When two machines change the same item, the later change wins. Items are
+matched by a generated identifier, not by the number you see in `park list`,
+which stays local to each machine.
+
+### Do not put the database in a synced folder
+
+Earlier versions suggested pointing `PARK_DB` at a synced folder. Don't.
+SQLite writes a database as several files that must stay in step, and a file
+syncer copies them one at a time. A half-copied set fails to open with
+`database disk image is malformed`, and turning off write-ahead logging
+narrows that window without closing it.
+
+`PARK_SYNC_DIR` avoids the problem: a log file is append-only and has exactly
+one writer, which every file syncer handles safely.
 
 ## Claude Code skill
 
@@ -118,6 +171,10 @@ This starts a local server at `http://127.0.0.1:7654` with full-text search, a
 repo filter, and clickable tags and types. Pass `--addr` to change the listen
 address. The server binds to localhost by default, so the UI stays private to
 your machine.
+
+The UI is read-only, so `park serve` copies the database once at startup and
+serves that snapshot. It never holds the live database open, and it shows the
+items as they were when the server started.
 
 ## Build
 
