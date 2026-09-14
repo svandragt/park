@@ -48,6 +48,7 @@ Set `PARK_SYNC_DIR` to enable multi-machine sync; leave it unset for a single ma
 | `serve` | Start a local web UI (`--addr`, default `127.0.0.1:7654`) over a startup snapshot of the database |
 | `hook` | Print the `SessionStart` hook config; `--install` merges it into the agent settings files. `hook run` is the hook body: reads the payload on stdin, prints this repo's active items as session context plus a user-visible `systemMessage` summary, silent on every failure |
 | `help` / `--help` / `-h` | Print top-level usage; handled before DB open |
+| `version` / `--version` / `-v` | Print the version; handled before DB open |
 
 ### Item statuses
 

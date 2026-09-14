@@ -25,6 +25,7 @@ Commands:
   hook             Print the SessionStart hook config (--install to add it)
   serve            Start a web UI to browse parked items (--addr, default 127.0.0.1:7654)
   help             Show this help (also --help, -h)
+  version          Print the version (also --version, -v)
 
 Environment:
   PARK_DB          Override the DB path (default: $XDG_DATA_HOME/park/park.db)

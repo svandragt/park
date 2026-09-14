@@ -1,8 +1,9 @@
 # Releasing
 
-`park` has no version string in the code and no build automation. A release is a
-git tag plus a matching GitHub release. Users install from source with
-`go install`, so tags exist to mark and document a point in history.
+`park` reports its version via the module version Go records at install time, and
+there is no build automation. A release is a git tag plus a matching GitHub
+release. Users install from source with `go install`, so a tag is what
+`park version` reports for anyone who installs that tagged version.
 
 ## Versioning
 

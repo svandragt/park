@@ -58,6 +58,7 @@ park sync-seed --i-understand-this-runs-once  # one-time: seed the sync log from
 park rebuild --yes                 # rebuild the local database from the sync logs
 park serve                         # browse items in a web UI (default 127.0.0.1:7654)
 park serve --addr :7654            # listen on a different address
+park version                       # print the version (also --version, -v)
 park help                          # show usage (also --help, -h)
 ```
 

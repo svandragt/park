@@ -25,6 +25,8 @@ func run() error {
 	switch os.Args[1] {
 	case "help", "--help", "-h":
 		return cmd.RunHelp(os.Args[2:])
+	case "version", "--version", "-v":
+		return cmd.RunVersion(os.Args[2:])
 	}
 
 	dbPath := os.Getenv("PARK_DB")
