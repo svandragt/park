@@ -1,6 +1,7 @@
 package park_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -8,7 +9,20 @@ import (
 
 	"github.com/svandragt/park/internal/db"
 	"github.com/svandragt/park/internal/park"
+	"github.com/svandragt/park/internal/synclog"
 )
+
+var errSinkBroken = errors.New("sink broken")
+
+type fakeSink struct {
+	events []synclog.Event
+	err    error
+}
+
+func (f *fakeSink) Emit(ev synclog.Event) error {
+	f.events = append(f.events, ev)
+	return f.err
+}
 
 func newTestStore(t *testing.T) *park.Store {
 	t.Helper()
@@ -161,6 +175,250 @@ func TestSearch_FilterByBranch(t *testing.T) {
 	}
 	if len(results) != 1 || results[0].Branch != "main" {
 		t.Errorf("expected 1 result for branch filter, got %d", len(results))
+	}
+}
+
+func TestSearch_FindsNewlyAddedItem(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: "widget frobnicator"})
+
+	results, err := s.Search("frobnicator", park.ListFilter{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+}
+
+func TestSearch_EditUpdatesIndex(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "oldname"})
+
+	newName := "renameditem"
+	if err := s.Update(id, park.UpdateFields{Name: &newName}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	results, err := s.Search("renameditem", park.ListFilter{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Errorf("expected 1 result for new name, got %d", len(results))
+	}
+
+	results, err = s.Search("oldname", park.ListFilter{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for old name, got %d", len(results))
+	}
+}
+
+func TestSearch_DeleteRemovesFromIndex(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "gonesoon"})
+
+	if err := s.Delete(id); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	results, err := s.Search("gonesoon", park.ListFilter{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("expected 0 results after delete, got %d", len(results))
+	}
+}
+
+func TestSearch_SetStatusKeepsItemFindable(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "statuschangeitem"})
+
+	if err := s.SetStatus(id, "resolved"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	results, err := s.Search("statuschangeitem", park.ListFilter{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Errorf("expected 1 result after status change, got %d", len(results))
+	}
+}
+
+func TestAdd_GeneratesUID(t *testing.T) {
+	s := newTestStore(t)
+	id, err := s.Add(park.Item{Name: "has uid"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	item, err := s.Get(id)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if item.UID == "" {
+		t.Error("expected a generated UID, got empty string")
+	}
+}
+
+func TestAdd_EmitsAddEvent(t *testing.T) {
+	s := newTestStore(t)
+	sink := &fakeSink{}
+	s.SetSink(sink)
+
+	id, err := s.Add(park.Item{Name: "emits", Tags: "x"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sink.events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(sink.events))
+	}
+	ev := sink.events[0]
+	if ev.Op != "add" {
+		t.Errorf("op = %q, want add", ev.Op)
+	}
+	item, _ := s.Get(id)
+	if ev.UID != item.UID {
+		t.Errorf("event uid = %q, want %q", ev.UID, item.UID)
+	}
+	if ev.Fields["name"] != "emits" {
+		t.Errorf("expected fields to carry name, got %+v", ev.Fields)
+	}
+}
+
+func TestUpdate_EmitsEditEventWithOnlyChangedFields(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "orig"})
+	sink := &fakeSink{}
+	s.SetSink(sink)
+
+	newName := "renamed"
+	if err := s.Update(id, park.UpdateFields{Name: &newName}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sink.events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(sink.events))
+	}
+	ev := sink.events[0]
+	if ev.Op != "edit" {
+		t.Errorf("op = %q, want edit", ev.Op)
+	}
+	if ev.Fields["name"] != "renamed" {
+		t.Errorf("expected changed name field, got %+v", ev.Fields)
+	}
+	if _, ok := ev.Fields["description"]; ok {
+		t.Errorf("expected unchanged fields to be absent, got %+v", ev.Fields)
+	}
+}
+
+func TestSetStatus_EmitsStatusEvent(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "orig"})
+	sink := &fakeSink{}
+	s.SetSink(sink)
+
+	if err := s.SetStatus(id, "resolved"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sink.events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(sink.events))
+	}
+	ev := sink.events[0]
+	if ev.Op != "status" {
+		t.Errorf("op = %q, want status", ev.Op)
+	}
+	if ev.Fields["status"] != "resolved" {
+		t.Errorf("expected status field, got %+v", ev.Fields)
+	}
+}
+
+func TestDelete_EmitsDeleteEvent(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "orig"})
+	item, _ := s.Get(id)
+	sink := &fakeSink{}
+	s.SetSink(sink)
+
+	if err := s.Delete(id); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sink.events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(sink.events))
+	}
+	ev := sink.events[0]
+	if ev.Op != "delete" {
+		t.Errorf("op = %q, want delete", ev.Op)
+	}
+	if ev.UID != item.UID {
+		t.Errorf("event uid = %q, want %q", ev.UID, item.UID)
+	}
+	if ev.Fields != nil {
+		t.Errorf("expected no fields on delete, got %+v", ev.Fields)
+	}
+}
+
+func TestSinkError_DoesNotFailTheCommand(t *testing.T) {
+	s := newTestStore(t)
+	sink := &fakeSink{err: errSinkBroken}
+	s.SetSink(sink)
+
+	if _, err := s.Add(park.Item{Name: "still works"}); err != nil {
+		t.Fatalf("sink error leaked into Add: %v", err)
+	}
+}
+
+func TestPrune_EmitsDeleteEventPerRow(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "old resolved"})
+	s.SetStatus(id, "resolved")
+	s.DB().Exec(`UPDATE parks SET updated_at = datetime('now', '-10 days') WHERE id = ?`, id)
+	item, _ := s.Get(id)
+
+	sink := &fakeSink{}
+	s.SetSink(sink)
+
+	n, err := s.Prune(time.Now().AddDate(0, 0, -7))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 pruned, got %d", n)
+	}
+	if len(sink.events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(sink.events))
+	}
+	if sink.events[0].Op != "delete" || sink.events[0].UID != item.UID {
+		t.Errorf("unexpected event: %+v", sink.events[0])
+	}
+}
+
+func TestUpdateRemote_EmitsEditEventPerRow(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: "a", Remote: "https://old"})
+	s.Add(park.Item{Name: "b", Remote: "https://old"})
+
+	sink := &fakeSink{}
+	s.SetSink(sink)
+
+	n, err := s.UpdateRemote("https://old", "https://new")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("expected 2 updated, got %d", n)
+	}
+	if len(sink.events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(sink.events))
+	}
+	for _, ev := range sink.events {
+		if ev.Op != "edit" || ev.Fields["remote"] != "https://new" {
+			t.Errorf("unexpected event: %+v", ev)
+		}
 	}
 }
 

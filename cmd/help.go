@@ -20,12 +20,15 @@ Commands:
   prune            Hard-delete resolved/archived items older than --days (default 30)
   migrate <dir>    Copy the DB to a new directory
   rename-remote    Bulk-update remote across all items (old → new)
+  sync-seed        One-time bootstrap: write every existing row into this device's log
+  rebuild          Discard local rows and rebuild from the shared log (--yes required)
   hook             Print the SessionStart hook config (--install to add it)
   serve            Start a web UI to browse parked items (--addr, default 127.0.0.1:7654)
   help             Show this help (also --help, -h)
 
 Environment:
   PARK_DB          Override the DB path (default: $XDG_DATA_HOME/park/park.db)
+  PARK_SYNC_DIR    Directory for the per-device sync log (enables sync-seed/rebuild)
 
 Run 'park <command> -h' for command-specific flags.
 `

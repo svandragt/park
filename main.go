@@ -8,6 +8,7 @@ import (
 	"github.com/svandragt/park/cmd"
 	"github.com/svandragt/park/internal/db"
 	"github.com/svandragt/park/internal/park"
+	"github.com/svandragt/park/internal/synclog"
 )
 
 func main() {
@@ -57,8 +58,30 @@ func run() error {
 
 	store := park.New(database)
 
+	// With PARK_SYNC_DIR set, every write also lands in this device's own
+	// append-only log; no other machine writes that file, so a file syncer
+	// has nothing to conflict over.
+	syncDir := os.Getenv("PARK_SYNC_DIR")
+	if syncDir != "" {
+		device, err := os.Hostname()
+		if err != nil {
+			return err
+		}
+		store.SetSink(synclog.FileSink{Dir: syncDir, Device: device})
+	}
+
 	sub := os.Args[1]
 	args := os.Args[2:]
+
+	// sync-seed reads the local db to bootstrap the log and must not be
+	// affected by a partial fold first; every other command folds in
+	// whatever's new before it runs. A fold error is non-fatal: the user's
+	// command should still proceed against what's already local.
+	if syncDir != "" && sub != "sync-seed" {
+		if _, err := store.Fold(syncDir); err != nil {
+			fmt.Fprintln(os.Stderr, "park: fold warning:", err)
+		}
+	}
 
 	switch sub {
 	case "add":
@@ -85,6 +108,10 @@ func run() error {
 		return cmd.RunMigrate(dbPath, args)
 	case "rename-remote":
 		return cmd.RunRenameRemote(store, args)
+	case "sync-seed":
+		return cmd.RunSyncSeed(store, syncDir, args)
+	case "rebuild":
+		return cmd.RunRebuild(store, syncDir, args)
 	case "serve":
 		return cmd.RunServe(store, args)
 	default:

@@ -6,9 +6,12 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/svandragt/park/internal/db"
 	"github.com/svandragt/park/internal/park"
 )
 
@@ -44,12 +47,41 @@ a.back:hover { text-decoration: underline; }
 .empty { color: #888; }
 `
 
+// snapshot takes a point-in-time, checkpointed copy of store's database so
+// the read-only web UI never holds the live DB open — a long-lived handle on
+// a file-synced database caused a corruption incident.
+func snapshot(store *park.Store) (string, error) {
+	dir, err := os.MkdirTemp("", "park-serve-*")
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, "snapshot.db")
+	if _, err := store.DB().Exec(`VACUUM INTO ?`, path); err != nil {
+		os.RemoveAll(dir)
+		return "", err
+	}
+	return path, nil
+}
+
 func RunServe(store *park.Store, args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 	addr := fs.String("addr", "127.0.0.1:7654", "address to listen on")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+
+	snapPath, err := snapshot(store)
+	if err != nil {
+		return fmt.Errorf("snapshot: %w", err)
+	}
+	defer os.RemoveAll(filepath.Dir(snapPath))
+
+	snapConn, err := db.Open(snapPath)
+	if err != nil {
+		return fmt.Errorf("open snapshot: %w", err)
+	}
+	defer snapConn.Close()
+	store = park.New(snapConn)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/item/", func(w http.ResponseWriter, r *http.Request) {
