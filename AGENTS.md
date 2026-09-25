@@ -32,7 +32,7 @@ Set `PARK_SYNC_DIR` to enable multi-machine sync; leave it unset for a single ma
 | Command | Action |
 |---|---|
 | `add` | Insert a new item; auto-captures hostname, git remote, and current git branch |
-| `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`, `--status`) |
+| `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`, `--status`); `--append-body` and `--append-how` add to a field instead of replacing it |
 | `list` / `ls` | List items filtered by `--status`, `--remote`, `--branch`, `--tag`, `--type` (default status: `active`); shows tags inline |
 | `search <keyword>` | Full-text search across name, description, body, why, how-to-apply, tags (FTS5, porter stemming); supports `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--current` filters (default status: `active`) |
 | `show <id>` | Full detail view of one item |

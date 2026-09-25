@@ -58,3 +58,34 @@ func TestRunEdit_RejectsInvalidStatus(t *testing.T) {
 		t.Errorf("status changed to %q despite invalid input", got.Status)
 	}
 }
+
+func TestRunEdit_AppendBodyKeepsExisting(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "foo", Body: "original", HowToApply: ""})
+
+	if err := RunEdit(s, []string{"-", "--append-body", "more", "--append-how", "step"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, _ := s.Get(id)
+	if got.Body != "original\n\nmore" {
+		t.Errorf("body = %q, want %q", got.Body, "original\n\nmore")
+	}
+	if got.HowToApply != "step" {
+		t.Errorf("how = %q, want %q", got.HowToApply, "step")
+	}
+}
+
+func TestRunEdit_RejectsBodyWithAppendBody(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "foo", Body: "original"})
+
+	if err := RunEdit(s, []string{"-", "--body", "new", "--append-body", "more"}); err == nil {
+		t.Fatal("expected error when combining --body and --append-body")
+	}
+
+	got, _ := s.Get(id)
+	if got.Body != "original" {
+		t.Errorf("body changed to %q despite error", got.Body)
+	}
+}
