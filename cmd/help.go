@@ -11,7 +11,7 @@ Commands:
   add              Park a new item (auto-captures host, remote, branch; --parent links it to a milestone)
   edit <id>        Update fields on an existing item (--parent sets or clears the parent)
   list, ls         List items (filter by --status/--remote/--branch/--tag/--type/--parent/--current)
-  search <kw>      Full-text search across name/description/body/why/how/tags
+  search <kw>      Full-text search across name/description/body/why/how/tags (same filters as list, incl. --parent)
   show <id>        Show full detail for one item (use - for most recent)
   done <id>        Mark item resolved (use - for most recent)
   archive <id>     Archive item
