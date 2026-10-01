@@ -14,7 +14,8 @@ func RunList(store *park.Store, args []string) error {
 	remote := fs.String("remote", "", "filter by git remote URL")
 	branch := fs.String("branch", "", "filter by branch name")
 	tag := fs.String("tag", "", "filter by tag")
-	typ := fs.String("type", "", "filter by type (project/bug/feature/chore/docs)")
+	typ := fs.String("type", "", "filter by type (task/project/bug/feature/chore/docs)")
+	parentRef := fs.String("parent", "", "filter by parent item id (#240, 240 or -)")
 	current := fs.Bool("current", false, "filter by current git remote and branch")
 
 	if err := fs.Parse(args); err != nil {
@@ -24,6 +25,11 @@ func RunList(store *park.Store, args []string) error {
 	if *current {
 		*remote = currentRemote()
 		*branch = currentBranch()
+	}
+
+	parent, err := resolveParent(store, *parentRef)
+	if err != nil {
+		return err
 	}
 
 	filterStatus := *status
@@ -37,9 +43,15 @@ func RunList(store *park.Store, args []string) error {
 		Branch: *branch,
 		Tag:    *tag,
 		Type:   *typ,
+		Parent: parent,
 	})
 	if err != nil {
 		return err
+	}
+	if parent != "" {
+		if err := printParentHeader(store, parent); err != nil {
+			return err
+		}
 	}
 	if len(items) == 0 {
 		fmt.Println("no parked items")

@@ -435,3 +435,85 @@ func TestGetLast_ReturnsMostRecent(t *testing.T) {
 		t.Errorf("got ID %d, want %d", item.ID, id)
 	}
 }
+
+func TestChildren_ReturnsDirectChildrenOfAllStatuses(t *testing.T) {
+	s := newTestStore(t)
+	pid, _ := s.Add(park.Item{Name: "milestone"})
+	parent, _ := s.Get(pid)
+	s.Add(park.Item{Name: "stranger"})
+	cid, _ := s.Add(park.Item{Name: "child", Parent: parent.UID})
+	s.SetStatus(cid, "resolved")
+	s.Add(park.Item{Name: "child 2", Parent: parent.UID})
+
+	kids, err := s.Children(parent.UID)
+	if err != nil {
+		t.Fatalf("children: %v", err)
+	}
+	if len(kids) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(kids))
+	}
+	got, err := s.GetByUID(parent.UID)
+	if err != nil || got.Name != "milestone" {
+		t.Errorf("GetByUID = %+v, %v; want milestone", got, err)
+	}
+	if _, err := s.GetByUID("nope"); err != park.ErrNotFound {
+		t.Errorf("GetByUID unknown = %v, want ErrNotFound", err)
+	}
+}
+
+func TestPrune_ClearsParentOnSurvivingChildren(t *testing.T) {
+	s := newTestStore(t)
+	pid, _ := s.Add(park.Item{Name: "milestone"})
+	parent, _ := s.Get(pid)
+	cid, _ := s.Add(park.Item{Name: "child", Parent: parent.UID})
+	s.SetStatus(pid, "resolved")
+	sink := &fakeSink{}
+	s.SetSink(sink)
+
+	if _, err := s.Prune(time.Now().Add(time.Hour)); err != nil {
+		t.Fatalf("prune: %v", err)
+	}
+
+	child, _ := s.Get(cid)
+	if child.Parent != "" {
+		t.Errorf("parent = %q, want cleared", child.Parent)
+	}
+	edits := 0
+	for _, ev := range sink.events {
+		if ev.Op == "edit" && ev.Fields["parent"] == "" {
+			edits++
+		}
+	}
+	if edits != 1 {
+		t.Errorf("expected 1 parent-clearing edit event, got %d", edits)
+	}
+}
+
+func TestRetypeAll_RewritesMatchingRowsAndEmitsEditPerItem(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: "a", Type: "project"})
+	s.Add(park.Item{Name: "b", Type: "project"})
+	s.Add(park.Item{Name: "c", Type: "bug"})
+	sink := &fakeSink{}
+	s.SetSink(sink)
+
+	n, err := s.RetypeAll("project", "task")
+	if err != nil {
+		t.Fatalf("retype: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("n = %d, want 2", n)
+	}
+	if len(sink.events) != 2 {
+		t.Fatalf("expected 2 edit events, got %d", len(sink.events))
+	}
+	for _, ev := range sink.events {
+		if ev.Op != "edit" || ev.Fields["type"] != "task" {
+			t.Errorf("unexpected event %+v", ev)
+		}
+	}
+	tasks, _ := s.List(park.ListFilter{Type: "task"})
+	if len(tasks) != 2 {
+		t.Errorf("expected 2 tasks, got %d", len(tasks))
+	}
+}

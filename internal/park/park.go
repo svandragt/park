@@ -24,6 +24,7 @@ type Item struct {
 	Status      string
 	Device      string
 	UID         string
+	Parent      string // parent item's UID, empty for none
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -60,11 +61,11 @@ func (s *Store) emit(ev synclog.Event) {
 func (s *Store) Add(item Item) (int64, error) {
 	uid := synclog.NewULID()
 	res, err := s.db.Exec(`
-INSERT INTO parks (name, description, type, body, why, how_to_apply, remote, branch, tags, device, uid)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+INSERT INTO parks (name, description, type, body, why, how_to_apply, remote, branch, tags, device, uid, parent)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		item.Name, item.Description, item.Type, item.Body,
 		item.Why, item.HowToApply, item.Remote, item.Branch,
-		item.Tags, item.Device, uid,
+		item.Tags, item.Device, uid, item.Parent,
 	)
 	if err != nil {
 		return 0, err
@@ -81,7 +82,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			"name": item.Name, "description": item.Description, "type": item.Type,
 			"body": item.Body, "why": item.Why, "how_to_apply": item.HowToApply,
 			"remote": item.Remote, "branch": item.Branch, "tags": item.Tags,
-			"status": "active", "device": item.Device,
+			"status": "active", "device": item.Device, "parent": item.Parent,
 		},
 	})
 	return id, nil
@@ -93,10 +94,11 @@ type ListFilter struct {
 	Branch string
 	Tag    string
 	Type   string
+	Parent string // parent item's UID
 }
 
 func (s *Store) List(f ListFilter) ([]Item, error) {
-	query := `SELECT id, name, description, type, body, why, how_to_apply, remote, branch, tags, status, device, uid, created_at, updated_at FROM parks WHERE 1=1`
+	query := `SELECT id, name, description, type, body, why, how_to_apply, remote, branch, tags, status, device, uid, parent, created_at, updated_at FROM parks WHERE 1=1`
 	args := []any{}
 
 	if f.Status != "" {
@@ -119,6 +121,10 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 		query += ` AND type = ?`
 		args = append(args, f.Type)
 	}
+	if f.Parent != "" {
+		query += ` AND parent = ?`
+		args = append(args, f.Parent)
+	}
 	query += ` ORDER BY updated_at DESC, id DESC`
 
 	rows, err := s.db.Query(query, args...)
@@ -132,7 +138,7 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 func (s *Store) Search(keyword string, f ListFilter) ([]Item, error) {
 	query := `
 SELECT p.id, p.name, p.description, p.type, p.body, p.why, p.how_to_apply,
-       p.remote, p.branch, p.tags, p.status, p.device, p.uid, p.created_at, p.updated_at
+       p.remote, p.branch, p.tags, p.status, p.device, p.uid, p.parent, p.created_at, p.updated_at
 FROM parks_fts f
 JOIN parks p ON p.id = f.rowid
 WHERE parks_fts MATCH ?`
@@ -157,6 +163,10 @@ WHERE parks_fts MATCH ?`
 		query += ` AND p.type = ?`
 		args = append(args, f.Type)
 	}
+	if f.Parent != "" {
+		query += ` AND p.parent = ?`
+		args = append(args, f.Parent)
+	}
 	query += ` ORDER BY bm25(parks_fts)`
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -172,7 +182,7 @@ func scanRows(rows *sql.Rows) ([]Item, error) {
 		var it Item
 		if err := rows.Scan(&it.ID, &it.Name, &it.Description, &it.Type, &it.Body,
 			&it.Why, &it.HowToApply, &it.Remote, &it.Branch, &it.Tags,
-			&it.Status, &it.Device, &it.UID, &it.CreatedAt, &it.UpdatedAt); err != nil {
+			&it.Status, &it.Device, &it.UID, &it.Parent, &it.CreatedAt, &it.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, it)
@@ -181,11 +191,28 @@ func scanRows(rows *sql.Rows) ([]Item, error) {
 }
 
 func (s *Store) Get(id int64) (*Item, error) {
-	row := s.db.QueryRow(`SELECT id, name, description, type, body, why, how_to_apply, remote, branch, tags, status, device, uid, created_at, updated_at FROM parks WHERE id = ?`, id)
+	return s.getWhere(`id = ?`, id)
+}
+
+func (s *Store) GetByUID(uid string) (*Item, error) {
+	return s.getWhere(`uid = ?`, uid)
+}
+
+// Children returns the direct children of the item with the given uid, in
+// every status, so callers can count how many are done.
+func (s *Store) Children(uid string) ([]Item, error) {
+	if uid == "" {
+		return nil, nil
+	}
+	return s.List(ListFilter{Parent: uid})
+}
+
+func (s *Store) getWhere(where string, arg any) (*Item, error) {
+	row := s.db.QueryRow(`SELECT id, name, description, type, body, why, how_to_apply, remote, branch, tags, status, device, uid, parent, created_at, updated_at FROM parks WHERE `+where, arg)
 	var it Item
 	if err := row.Scan(&it.ID, &it.Name, &it.Description, &it.Type, &it.Body,
 		&it.Why, &it.HowToApply, &it.Remote, &it.Branch, &it.Tags,
-		&it.Status, &it.Device, &it.UID, &it.CreatedAt, &it.UpdatedAt); err != nil {
+		&it.Status, &it.Device, &it.UID, &it.Parent, &it.CreatedAt, &it.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -202,6 +229,7 @@ type UpdateFields struct {
 	HowToApply  *string
 	Tags        *string
 	Type        *string
+	Parent      *string
 }
 
 func (s *Store) Update(id int64, f UpdateFields) error {
@@ -243,6 +271,11 @@ func (s *Store) Update(id int64, f UpdateFields) error {
 		args = append(args, *f.Type)
 		fields["type"] = *f.Type
 	}
+	if f.Parent != nil {
+		sets = append(sets, "parent = ?")
+		args = append(args, *f.Parent)
+		fields["parent"] = *f.Parent
+	}
 	if len(sets) == 0 {
 		return nil
 	}
@@ -283,6 +316,45 @@ func (s *Store) UpdateRemote(oldURL, newURL string) (int64, error) {
 		s.emit(synclog.Event{UID: uid, Op: "edit", TS: time.Now().UTC().Format(time.RFC3339Nano), Fields: map[string]any{"remote": newURL}})
 	}
 	return n, nil
+}
+
+// RetypeAll changes the type of every item of type oldType, emitting one edit
+// event per item so other devices converge.
+func (s *Store) RetypeAll(oldType, newType string) (int64, error) {
+	uids, err := s.uidsWhere(`type = ?`, oldType)
+	if err != nil {
+		return 0, err
+	}
+	res, err := s.db.Exec(`UPDATE parks SET type = ?, updated_at = CURRENT_TIMESTAMP WHERE type = ?`, newType, oldType)
+	if err != nil {
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	for _, uid := range uids {
+		s.emit(synclog.Event{UID: uid, Op: "edit", TS: time.Now().UTC().Format(time.RFC3339Nano), Fields: map[string]any{"type": newType}})
+	}
+	return n, nil
+}
+
+// orphanChildren clears parent on the children of items about to be deleted,
+// so no item points at a uid that no longer exists.
+func (s *Store) orphanChildren(parentUIDs ...string) error {
+	for _, parent := range parentUIDs {
+		uids, err := s.uidsWhere(`parent = ?`, parent)
+		if err != nil {
+			return err
+		}
+		if _, err := s.db.Exec(`UPDATE parks SET parent = '', updated_at = CURRENT_TIMESTAMP WHERE parent = ?`, parent); err != nil {
+			return err
+		}
+		for _, uid := range uids {
+			s.emit(synclog.Event{UID: uid, Op: "edit", TS: time.Now().UTC().Format(time.RFC3339Nano), Fields: map[string]any{"parent": ""}})
+		}
+	}
+	return nil
 }
 
 // uidFor looks up a single item's uid so a write's sync event can carry it
@@ -329,6 +401,9 @@ func (s *Store) Prune(before time.Time) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if err := s.orphanChildren(uids...); err != nil {
+		return 0, err
+	}
 	res, err := s.db.Exec(
 		`DELETE FROM parks WHERE status IN ('resolved','archived') AND updated_at < ?`,
 		cutoff,
@@ -345,6 +420,11 @@ func (s *Store) Prune(before time.Time) (int64, error) {
 
 func (s *Store) Delete(id int64) error {
 	uid, uidErr := s.uidFor(id)
+	if uidErr == nil {
+		if err := s.orphanChildren(uid); err != nil {
+			return err
+		}
+	}
 	res, err := s.db.Exec(`DELETE FROM parks WHERE id = ?`, id)
 	if err != nil {
 		return err

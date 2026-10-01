@@ -17,13 +17,19 @@ func RunAdd(store *park.Store, args []string) error {
 	why := fs.String("why", "", "why this matters")
 	how := fs.String("how", "", "how to apply / pick up from here")
 	tags := fs.String("tags", "", "comma-separated tags")
-	typ := fs.String("type", "project", "item type")
+	typ := fs.String("type", "task", "item type")
+	parentRef := fs.String("parent", "", "parent item id (#240, 240 or - for most recent)")
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *name == "" {
 		return fmt.Errorf("--name is required")
+	}
+
+	parent, err := resolveParent(store, *parentRef)
+	if err != nil {
+		return err
 	}
 
 	device, _ := os.Hostname()
@@ -45,9 +51,10 @@ func RunAdd(store *park.Store, args []string) error {
 		Why:         *why,
 		HowToApply:  *how,
 		Tags:        *tags,
-		Remote:   remote,
+		Remote:      remote,
 		Branch:      branch,
 		Device:      device,
+		Parent:      parent,
 	})
 	if err != nil {
 		return err
@@ -55,4 +62,3 @@ func RunAdd(store *park.Store, args []string) error {
 	fmt.Printf("parked #%d: %s\n", id, *name)
 	return nil
 }
-

@@ -110,6 +110,8 @@ func run() error {
 		return cmd.RunMigrate(dbPath, args)
 	case "rename-remote":
 		return cmd.RunRenameRemote(store, args)
+	case "retype":
+		return cmd.RunRetype(store, args)
 	case "sync-seed":
 		return cmd.RunSyncSeed(store, syncDir, args)
 	case "rebuild":

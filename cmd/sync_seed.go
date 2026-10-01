@@ -51,7 +51,7 @@ func RunSyncSeed(store *park.Store, syncDir string, args []string) error {
 				"name": it.Name, "description": it.Description, "type": it.Type,
 				"body": it.Body, "why": it.Why, "how_to_apply": it.HowToApply,
 				"remote": it.Remote, "branch": it.Branch, "tags": it.Tags,
-				"status": it.Status, "device": it.Device,
+				"status": it.Status, "device": it.Device, "parent": it.Parent,
 			},
 		}
 		if err := sink.Emit(ev); err != nil {

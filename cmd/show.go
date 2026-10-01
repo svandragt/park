@@ -39,6 +39,19 @@ func RunShow(store *park.Store, args []string) error {
 	if it.Remote != "" {
 		fmt.Printf("\nRepo: %s  Branch: %s", it.Remote, it.Branch)
 	}
+	if it.Parent != "" {
+		if parent, err := store.GetByUID(it.Parent); err == nil {
+			fmt.Printf("\nParent: #%d %s", parent.ID, parent.Name)
+		}
+	}
 	fmt.Printf("\nDevice: %s  Parked: %s\n", it.Device, it.CreatedAt.Format("2006-01-02 15:04"))
+
+	kids, err := store.Children(it.UID)
+	if err != nil {
+		return err
+	}
+	if len(kids) > 0 {
+		fmt.Printf("\nChildren: %d/%d done\n\n%s", countDone(kids), len(kids), formatItems(kids))
+	}
 	return nil
 }

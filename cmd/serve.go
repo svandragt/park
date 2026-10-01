@@ -81,8 +81,13 @@ func RunServe(store *park.Store, args []string) error {
 		return fmt.Errorf("open snapshot: %w", err)
 	}
 	defer snapConn.Close()
-	store = park.New(snapConn)
 
+	mux := newServeMux(park.New(snapConn))
+	fmt.Printf("park web UI: http://%s\n", *addr)
+	return http.ListenAndServe(*addr, mux)
+}
+
+func newServeMux(store *park.Store) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/item/", func(w http.ResponseWriter, r *http.Request) {
 		idStr := strings.TrimPrefix(r.URL.Path, "/item/")
@@ -96,7 +101,7 @@ func RunServe(store *park.Store, args []string) error {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
-		serveDetail(w, it)
+		serveDetail(w, store, it)
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -117,7 +122,23 @@ func RunServe(store *park.Store, args []string) error {
 		remote := q.Get("remote")
 		search := q.Get("q")
 
+		var parent *park.Item
+		if p := q.Get("parent"); p != "" {
+			pid, err := strconv.ParseInt(p, 10, 64)
+			if err != nil {
+				http.Error(w, "invalid parent", http.StatusBadRequest)
+				return
+			}
+			if parent, err = store.Get(pid); err != nil {
+				http.Error(w, "parent not found", http.StatusNotFound)
+				return
+			}
+		}
+
 		f := park.ListFilter{Status: filterStatus, Tag: tag, Type: typ, Remote: remote}
+		if parent != nil {
+			f.Parent = parent.UID
+		}
 		var items []park.Item
 		var err error
 		if search != "" {
@@ -129,11 +150,9 @@ func RunServe(store *park.Store, args []string) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		serveIndex(w, items, status, tag, typ, remote, search)
+		serveIndex(w, items, status, tag, typ, remote, search, parent)
 	})
-
-	fmt.Printf("park web UI: http://%s\n", *addr)
-	return http.ListenAndServe(*addr, mux)
+	return mux
 }
 
 func htmlPage(title, body string) string {
@@ -141,9 +160,12 @@ func htmlPage(title, body string) string {
 		`<style>` + serveCSS + `</style></head><body>` + body + `</body></html>`
 }
 
-func indexURL(status, tag, typ, remote, search string) string {
+func indexURL(status, tag, typ, remote, search, parent string) string {
 	v := url.Values{}
 	v.Set("status", status)
+	if parent != "" {
+		v.Set("parent", parent)
+	}
 	if tag != "" {
 		v.Set("tag", tag)
 	}
@@ -163,7 +185,7 @@ func typeBadge(typ, status string) string {
 	if typ == "" {
 		return ""
 	}
-	href := indexURL(status, "", typ, "", "")
+	href := indexURL(status, "", typ, "", "", "")
 	return `<span class="badge"><a href="` + html.EscapeString(href) + `">` + html.EscapeString(typ) + `</a></span>`
 }
 
@@ -177,13 +199,17 @@ func tagBadges(tags, status string) string {
 		if t == "" {
 			continue
 		}
-		href := indexURL(status, t, "", "", "")
+		href := indexURL(status, t, "", "", "", "")
 		parts = append(parts, `<span class="badge"><a href="`+html.EscapeString(href)+`">`+html.EscapeString(t)+`</a></span>`)
 	}
 	return strings.Join(parts, " ")
 }
 
-func serveIndex(w http.ResponseWriter, items []park.Item, status, activeTag, activeType, activeRemote, activeSearch string) {
+func serveIndex(w http.ResponseWriter, items []park.Item, status, activeTag, activeType, activeRemote, activeSearch string, activeParent *park.Item) {
+	parentID := ""
+	if activeParent != nil {
+		parentID = strconv.FormatInt(activeParent.ID, 10)
+	}
 	statuses := []string{"active", "resolved", "archived", "all"}
 	nav := `<nav>`
 	for _, s := range statuses {
@@ -191,19 +217,22 @@ func serveIndex(w http.ResponseWriter, items []park.Item, status, activeTag, act
 		if s == status {
 			cls = ` class="active"`
 		}
-		nav += `<a href="` + indexURL(s, activeTag, activeType, activeRemote, activeSearch) + `"` + cls + `>` + s + `</a>`
+		nav += `<a href="` + indexURL(s, activeTag, activeType, activeRemote, activeSearch, parentID) + `"` + cls + `>` + s + `</a>`
 	}
 	if activeTag != "" {
-		nav += ` <span class="badge">tag: ` + html.EscapeString(activeTag) + ` <a href="` + indexURL(status, "", activeType, activeRemote, activeSearch) + `">×</a></span>`
+		nav += ` <span class="badge">tag: ` + html.EscapeString(activeTag) + ` <a href="` + indexURL(status, "", activeType, activeRemote, activeSearch, parentID) + `">×</a></span>`
 	}
 	if activeType != "" {
-		nav += ` <span class="badge">type: ` + html.EscapeString(activeType) + ` <a href="` + indexURL(status, activeTag, "", activeRemote, activeSearch) + `">×</a></span>`
+		nav += ` <span class="badge">type: ` + html.EscapeString(activeType) + ` <a href="` + indexURL(status, activeTag, "", activeRemote, activeSearch, parentID) + `">×</a></span>`
 	}
 	if activeRemote != "" {
 		label := strings.TrimPrefix(activeRemote, "https://")
 		label = strings.TrimPrefix(label, "git@")
 		label = strings.TrimSuffix(label, ".git")
-		nav += ` <span class="badge">repo: ` + html.EscapeString(label) + ` <a href="` + indexURL(status, activeTag, activeType, "", activeSearch) + `">×</a></span>`
+		nav += ` <span class="badge">repo: ` + html.EscapeString(label) + ` <a href="` + indexURL(status, activeTag, activeType, "", activeSearch, parentID) + `">×</a></span>`
+	}
+	if activeParent != nil {
+		nav += ` <span class="badge">parent: #` + parentID + ` ` + html.EscapeString(activeParent.Name) + ` <a href="` + indexURL(status, activeTag, activeType, activeRemote, activeSearch, "") + `">×</a></span>`
 	}
 
 	// search box
@@ -255,7 +284,7 @@ func serveIndex(w http.ResponseWriter, items []park.Item, status, activeTag, act
 	fmt.Fprint(w, htmlPage("park", b.String()))
 }
 
-func serveDetail(w http.ResponseWriter, it *park.Item) {
+func serveDetail(w http.ResponseWriter, store *park.Store, it *park.Item) {
 	var b strings.Builder
 	b.WriteString(`<a class="back" href="/">← back</a>`)
 	b.WriteString(`<div class="item">`)
@@ -278,6 +307,12 @@ func serveDetail(w http.ResponseWriter, it *park.Item) {
 	if it.HowToApply != "" {
 		b.WriteString(`<div class="field"><span class="field-label">How to apply:</span> ` + html.EscapeString(it.HowToApply) + `</div>`)
 	}
+	if it.Parent != "" {
+		if parent, err := store.GetByUID(it.Parent); err == nil {
+			pid := strconv.FormatInt(parent.ID, 10)
+			b.WriteString(`<div class="field"><span class="field-label">Parent:</span> <a href="/item/` + pid + `">#` + pid + ` ` + html.EscapeString(parent.Name) + `</a></div>`)
+		}
+	}
 	if it.Tags != "" {
 		b.WriteString(`<div class="field"><span class="field-label">Tags:</span> ` + tagBadges(it.Tags, it.Status) + `</div>`)
 	}
@@ -287,8 +322,19 @@ func serveDetail(w http.ResponseWriter, it *park.Item) {
 	b.WriteString(`<div class="field item-meta">Device: ` + html.EscapeString(it.Device) + ` · Parked: ` + it.CreatedAt.Format("2006-01-02 15:04") + `</div>`)
 	b.WriteString(`</div>`)
 
+	if kids, err := store.Children(it.UID); err == nil && len(kids) > 0 {
+		kidsURL := indexURL("all", "", "", "", "", strconv.FormatInt(it.ID, 10))
+		b.WriteString(`<div class="repo-link"><span class="field-label"><a href="` + html.EscapeString(kidsURL) + `">Children (` +
+			strconv.Itoa(countDone(kids)) + `/` + strconv.Itoa(len(kids)) + ` done)</a></span><ul>`)
+		for _, k := range kids {
+			kid := strconv.FormatInt(k.ID, 10)
+			b.WriteString(`<li><a href="/item/` + kid + `">#` + kid + ` ` + html.EscapeString(k.Name) + `</a> [` + html.EscapeString(k.Status) + `]</li>`)
+		}
+		b.WriteString(`</ul></div>`)
+	}
+
 	if it.Remote != "" {
-		repoURL := indexURL("all", "", "", it.Remote, "")
+		repoURL := indexURL("all", "", "", it.Remote, "", "")
 		b.WriteString(`<div class="repo-link"><a href="` + html.EscapeString(repoURL) + `">All items in this repo →</a></div>`)
 	}
 

@@ -54,3 +54,43 @@ func TestRunRebuild_DiscardsLocalRowsAndFoldsFromLog(t *testing.T) {
 		t.Errorf("uid = %q, want %q", items[0].UID, uid)
 	}
 }
+
+func TestRunRebuild_FoldsParentAndDefaultsTypeToTask(t *testing.T) {
+	s := newSeedTestStore(t)
+	dir := t.TempDir()
+	p1, p2, kid := synclog.NewULID(), synclog.NewULID(), synclog.NewULID()
+	for _, ev := range []synclog.Event{
+		{UID: p1, Op: "add", TS: "2026-01-01T00:00:00Z", Fields: map[string]any{"name": "one"}},
+		{UID: p2, Op: "add", TS: "2026-01-01T00:00:00Z", Fields: map[string]any{"name": "two"}},
+		{UID: kid, Op: "add", TS: "2026-01-01T00:00:01Z", Fields: map[string]any{"name": "kid", "parent": p1}},
+	} {
+		if err := synclog.Append(dir, "host1", ev); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+	}
+	if err := RunRebuild(s, dir, []string{"--yes"}); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	got, err := s.GetByUID(kid)
+	if err != nil {
+		t.Fatalf("get kid: %v", err)
+	}
+	if got.Parent != p1 {
+		t.Errorf("parent = %q, want %q", got.Parent, p1)
+	}
+	if got.Type != "task" {
+		t.Errorf("type = %q, want task when the add event has none", got.Type)
+	}
+
+	if err := synclog.Append(dir, "host1", synclog.Event{
+		UID: kid, Op: "edit", TS: "2026-01-01T00:00:05Z", Fields: map[string]any{"parent": p2},
+	}); err != nil {
+		t.Fatalf("append edit: %v", err)
+	}
+	if err := RunRebuild(s, dir, []string{"--yes"}); err != nil {
+		t.Fatalf("rebuild 2: %v", err)
+	}
+	if got, _ = s.GetByUID(kid); got.Parent != p2 {
+		t.Errorf("parent after edit = %q, want %q", got.Parent, p2)
+	}
+}

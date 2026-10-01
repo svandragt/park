@@ -220,3 +220,65 @@ func TestMigrate_FreshAndRepeated(t *testing.T) {
 		t.Errorf("remote column count = %d, want 1", n)
 	}
 }
+
+// A database created before parent relationships gets the parent column,
+// empty for existing rows, and a fresh database defaults type to task.
+func TestMigrate_AddsParentColumnAndTaskDefault(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "old_parent.db")
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if _, err := conn.Exec(`
+CREATE TABLE parks (
+	id           INTEGER PRIMARY KEY,
+	name         TEXT NOT NULL,
+	description  TEXT NOT NULL DEFAULT '',
+	type         TEXT NOT NULL DEFAULT 'project',
+	body         TEXT NOT NULL DEFAULT '',
+	why          TEXT NOT NULL DEFAULT '',
+	how_to_apply TEXT NOT NULL DEFAULT '',
+	remote       TEXT NOT NULL DEFAULT '',
+	branch       TEXT NOT NULL DEFAULT '',
+	tags         TEXT NOT NULL DEFAULT '',
+	status       TEXT NOT NULL DEFAULT 'active',
+	device       TEXT NOT NULL DEFAULT '',
+	created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO parks (name) VALUES ('old');
+`); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	conn.Close()
+
+	conn, err = Open(path)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	defer conn.Close()
+
+	var parent string
+	if err := conn.QueryRow(`SELECT parent FROM parks WHERE name = 'old'`).Scan(&parent); err != nil {
+		t.Fatalf("select parent: %v", err)
+	}
+	if parent != "" {
+		t.Errorf("parent = %q, want empty", parent)
+	}
+
+	fresh, err := Open(filepath.Join(t.TempDir(), "fresh.db"))
+	if err != nil {
+		t.Fatalf("open fresh: %v", err)
+	}
+	defer fresh.Close()
+	if _, err := fresh.Exec(`INSERT INTO parks (name) VALUES ('x')`); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	var typ string
+	if err := fresh.QueryRow(`SELECT type FROM parks WHERE name = 'x'`).Scan(&typ); err != nil {
+		t.Fatalf("select type: %v", err)
+	}
+	if typ != "task" {
+		t.Errorf("default type = %q, want task", typ)
+	}
+}

@@ -111,13 +111,13 @@ func applyEvent(tx *sql.Tx, ev synclog.Event) (int, error) {
 	switch ev.Op {
 	case "add":
 		res, err := tx.Exec(`
-INSERT INTO parks (name, description, type, body, why, how_to_apply, remote, branch, tags, status, device, uid, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO parks (name, description, type, body, why, how_to_apply, remote, branch, tags, status, device, uid, parent, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(uid) WHERE uid != '' DO NOTHING`,
-			str(ev.Fields["name"]), str(ev.Fields["description"]), strOr(ev.Fields["type"], "project"),
+			str(ev.Fields["name"]), str(ev.Fields["description"]), strOr(ev.Fields["type"], "task"),
 			str(ev.Fields["body"]), str(ev.Fields["why"]), str(ev.Fields["how_to_apply"]),
 			str(ev.Fields["remote"]), str(ev.Fields["branch"]), str(ev.Fields["tags"]),
-			strOr(ev.Fields["status"], "active"), strOr(ev.Fields["device"], ev.Device), ev.UID, ts, ts,
+			strOr(ev.Fields["status"], "active"), strOr(ev.Fields["device"], ev.Device), ev.UID, str(ev.Fields["parent"]), ts, ts,
 		)
 		if err != nil {
 			return 0, err
@@ -163,7 +163,7 @@ ON CONFLICT(uid) WHERE uid != '' DO NOTHING`,
 var editableColumns = map[string]string{
 	"name": "name", "description": "description", "type": "type",
 	"body": "body", "why": "why", "how_to_apply": "how_to_apply",
-	"remote": "remote", "branch": "branch", "tags": "tags", "status": "status",
+	"remote": "remote", "branch": "branch", "tags": "tags", "status": "status", "parent": "parent",
 }
 
 func str(v any) string {

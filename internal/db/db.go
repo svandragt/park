@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS parks (
 	id           INTEGER PRIMARY KEY,
 	name         TEXT NOT NULL,
 	description  TEXT NOT NULL DEFAULT '',
-	type         TEXT NOT NULL DEFAULT 'project',
+	type         TEXT NOT NULL DEFAULT 'task',
 	body         TEXT NOT NULL DEFAULT '',
 	why          TEXT NOT NULL DEFAULT '',
 	how_to_apply TEXT NOT NULL DEFAULT '',
@@ -125,6 +125,14 @@ END;
 	db.QueryRow(`SELECT count(*) FROM pragma_table_info('parks') WHERE name='uid'`).Scan(&hasUID)
 	if hasUID == 0 {
 		if _, err := db.Exec(`ALTER TABLE parks ADD COLUMN uid TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+
+	var hasParent int
+	db.QueryRow(`SELECT count(*) FROM pragma_table_info('parks') WHERE name='parent'`).Scan(&hasParent)
+	if hasParent == 0 {
+		if _, err := db.Exec(`ALTER TABLE parks ADD COLUMN parent TEXT NOT NULL DEFAULT ''`); err != nil {
 			return err
 		}
 	}

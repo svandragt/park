@@ -31,18 +31,19 @@ Set `PARK_SYNC_DIR` to enable multi-machine sync; leave it unset for a single ma
 
 | Command | Action |
 |---|---|
-| `add` | Insert a new item; auto-captures hostname, git remote, and current git branch |
-| `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`, `--status`); `--append-body` and `--append-how` add to a field instead of replacing it |
-| `list` / `ls` | List items filtered by `--status`, `--remote`, `--branch`, `--tag`, `--type` (default status: `active`); shows tags inline |
-| `search <keyword>` | Full-text search across name, description, body, why, how-to-apply, tags (FTS5, porter stemming); supports `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--current` filters (default status: `active`) |
-| `show <id>` | Full detail view of one item |
-| `done <id>` | Set status → `resolved` |
+| `add` | Insert a new item (default `--type task`); auto-captures hostname, git remote, and current git branch; `--parent <id>` links it to a parent item |
+| `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`, `--status`, `--parent`; `--parent ""` clears); `--append-body` and `--append-how` add to a field instead of replacing it |
+| `list` / `ls` | List items filtered by `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--parent` (default status: `active`); shows tags inline; `--parent` adds a `#<id> <name>  <done>/<total> done` header |
+| `search <keyword>` | Full-text search across name, description, body, why, how-to-apply, tags (FTS5, porter stemming); supports `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--parent`, `--current` filters (default status: `active`) |
+| `show <id>` | Full detail view of one item, including its parent and a `Children:` block with a done count |
+| `done <id>` | Set status → `resolved`; warns (without blocking) if the item has open children |
 | `archive <id>` | Set status → `archived` |
 | `reopen <id>` | Set status → `active` (reverse done/archive) |
-| `delete <id>` | Hard-delete an item from the database |
+| `delete <id>` | Hard-delete an item from the database; clears `parent` on its children |
 | `prune` | Hard-delete resolved/archived items older than `--days` (default 30) |
 | `migrate <dest-dir>` | Copy DB to a new directory and print the `PARK_DB` export line |
 | `rename-remote <old> <new>` | Bulk-update `remote` across all items |
+| `retype <old> <new>` | Bulk-change `type` across all items, one edit event per item so other devices converge |
 | `sync-seed` | One-time bootstrap: write every existing item to this device's log. Runs on exactly ONE machine; refuses without `--i-understand-this-runs-once` or if the log already has entries |
 | `rebuild` | Drop the local items and offsets, then rebuild from the sync logs alone. Requires `--yes` |
 | `serve` | Start a local web UI (`--addr`, default `127.0.0.1:7654`) over a startup snapshot of the database |

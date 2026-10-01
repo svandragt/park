@@ -26,5 +26,8 @@ func setStatus(store *park.Store, args []string, status string) error {
 		return err
 	}
 	fmt.Printf("#%d marked as %s\n", id, status)
+	if status == "resolved" {
+		return warnOpenChildren(store, id)
+	}
 	return nil
 }

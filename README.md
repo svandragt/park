@@ -32,17 +32,21 @@ park add --name "fix auth bug" --desc "Session token issue" --body "..." --why "
 park edit <id> --body "updated context" --tags "auth,urgent"
 park edit <id> --append-body "new notes"   # adds to the body instead of replacing it
 park edit <id> --status resolved   # equivalent to park done <id>
+park add --name "child" --parent 240   # group under a milestone (240, #240 or - for most recent)
+park edit <id> --parent 240        # set the parent; --parent "" clears it
 park list                          # active items
 park list --current                # scope to current git remote + branch
 park list --status resolved        # resolved items
 park list --remote github.com/org/repo  # filter by repo (SSH or HTTPS format)
 park list --branch main            # filter by branch
 park list --tag auth               # filter by tag
-park list --type bug               # filter by type (project/bug/feature/chore/docs)
+park list --type bug               # filter by type (task/project/bug/feature/chore/docs)
+park list --parent 240             # children of #240, with a done count in the header
 park search "JWT"                  # full-text search (porter stemming, active items only)
 park search --status all "JWT"     # search across all statuses
 park search --tag auth "token"     # search within a tag
 park search --type bug "crash"     # search within a type
+park search --parent 240 "crash"   # search within a milestone
 park search --remote github.com/org/repo "fix"  # search within a repo
 park search --current "token"      # search in current git remote + branch
 park show <id>                     # full detail
@@ -55,6 +59,7 @@ park delete <id>                   # hard-delete an item
 park prune --days 30               # hard-delete resolved/archived items older than N days
 park migrate <dest-dir>            # copy DB to new location, print PARK_DB export line
 park rename-remote <old> <new>     # update remote URL across all items
+park retype <old> <new>            # change the type of every item of one type (for example project task)
 park sync-seed --i-understand-this-runs-once  # one-time: seed the sync log from this machine
 park rebuild --yes                 # rebuild the local database from the sync logs
 park serve                         # browse items in a web UI (default 127.0.0.1:7654)
@@ -66,6 +71,11 @@ park help                          # show usage (also --help, -h)
 `add` automatically captures hostname, git remote, and current git branch.
 If the remote has been renamed (e.g. a GitHub repo rename), `add` detects the
 redirect and updates all existing items to the canonical URL automatically.
+
+The default type is `task`. Use type `project` for a milestone, then point its
+items at it with `--parent`. `show` lists a milestone's children with a done
+count. Resolving a milestone that still has open children prints a warning and
+goes ahead. Deleting or pruning a milestone clears `parent` on its children.
 
 ## Configuration
 

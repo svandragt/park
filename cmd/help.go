@@ -8,9 +8,9 @@ Usage:
   park <command> [flags]
 
 Commands:
-  add              Park a new item (auto-captures host, remote, branch)
-  edit <id>        Update fields on an existing item
-  list, ls         List items (filter by --status/--remote/--branch/--tag/--type/--current)
+  add              Park a new item (auto-captures host, remote, branch; --parent links it to a milestone)
+  edit <id>        Update fields on an existing item (--parent sets or clears the parent)
+  list, ls         List items (filter by --status/--remote/--branch/--tag/--type/--parent/--current)
   search <kw>      Full-text search across name/description/body/why/how/tags
   show <id>        Show full detail for one item (use - for most recent)
   done <id>        Mark item resolved (use - for most recent)
@@ -20,6 +20,7 @@ Commands:
   prune            Hard-delete resolved/archived items older than --days (default 30)
   migrate <dir>    Copy the DB to a new directory
   rename-remote    Bulk-update remote across all items (old → new)
+  retype           Bulk-change item type (old → new)
   sync-seed        One-time bootstrap: write every existing row into this device's log
   rebuild          Discard local rows and rebuild from the shared log (--yes required)
   hook             Print the SessionStart hook config (--install to add it)

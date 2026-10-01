@@ -27,13 +27,14 @@ func RunEdit(store *park.Store, args []string) error {
 	tags := fs.String("tags", "", "new tags")
 	typ := fs.String("type", "", "new type")
 	status := fs.String("status", "", "new status (active/resolved/archived)")
+	parentRef := fs.String("parent", "", "new parent item id (#240, 240 or - for most recent; empty clears)")
 
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
 
 	f := park.UpdateFields{}
-	statusSet := false
+	statusSet, parentSet := false, false
 	var appendBodySet, appendHowSet bool
 	fs.Visit(func(fl *flag.Flag) {
 		switch fl.Name {
@@ -57,6 +58,8 @@ func RunEdit(store *park.Store, args []string) error {
 			appendHowSet = true
 		case "status":
 			statusSet = true
+		case "parent":
+			parentSet = true
 		}
 	})
 
@@ -78,6 +81,21 @@ func RunEdit(store *park.Store, args []string) error {
 		}
 	}
 
+	if parentSet {
+		uid, err := resolveParent(store, *parentRef)
+		if err != nil {
+			return err
+		}
+		self, err := store.Get(id)
+		if err != nil {
+			return err
+		}
+		if uid == self.UID {
+			return fmt.Errorf("#%d cannot be its own parent", id)
+		}
+		f.Parent = &uid
+	}
+
 	if statusSet {
 		switch *status {
 		case "active", "resolved", "archived":
@@ -95,6 +113,9 @@ func RunEdit(store *park.Store, args []string) error {
 		}
 	}
 	fmt.Printf("#%d updated\n", id)
+	if statusSet && *status == "resolved" {
+		return warnOpenChildren(store, id)
+	}
 	return nil
 }
 

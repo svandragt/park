@@ -41,6 +41,8 @@ A finding raised mid-task costs attention whether or not it's acted on; a list a
 | `--why` | Why this matters / what the end goal is |
 | `--how` | Concrete next step to resume from here |
 | `--tags` | Optional: relevant keywords (language, area, feature name) |
+| `--type` | Optional: `task` (default), `project` (a milestone), `bug`, `feature`, `chore`, `docs` |
+| `--parent` | Optional: id of a parent item, such as a milestone (`240`, `#240` or `-` for the most recent) |
 
 Git remote, branch, device, and timestamp are auto-detected by the CLI.
 
@@ -56,13 +58,20 @@ park list
 # List all statuses
 park list --status all
 
+# List the children of a milestone (header shows the done count)
+park list --parent <id>
+
 # Filter by repo
 park list --remote https://github.com/org/repo
 
 # Show full detail
 park show <id>
 
-# Mark done
+# Set or clear the parent of an item
+park edit <id> --parent <parent-id>
+park edit <id> --parent ""
+
+# Mark done (warns if the item has open children)
 park done <id>
 
 # Archive
@@ -76,6 +85,9 @@ park delete <id>
 
 # Bulk-delete resolved/archived items older than N days (default 30)
 park prune --days 30
+
+# Change the type of every item of one type
+park retype <old> <new>
 
 # Move DB to a new directory (for sync folder setup)
 park migrate <dest-dir>
@@ -132,7 +144,7 @@ Then reports: `parked #3: Refactoring auth middleware`
    | `--why` | Inferred motivation: what problem does this fix, or what value does it add? |
    | `--how` | Concrete first step to start working on this issue |
    | `--tags` | Label names normalized (lowercase, hyphens→underscores) plus any inferred keywords |
-   | `--type` | Inferred from labels: `bug`, `feature`, `chore`, `docs` — default `project` |
+   | `--type` | Inferred from labels: `bug`, `feature`, `chore`, `docs` — default `task`; `project` marks a milestone |
 
    ```bash
    park add --name "..." --desc "..." --body "..." --why "..." --how "..." --tags "..." --type "..."
