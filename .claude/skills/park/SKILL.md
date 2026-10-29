@@ -43,6 +43,7 @@ A finding raised mid-task costs attention whether or not it's acted on; a list a
 | `--tags` | Optional: relevant keywords (language, area, feature name) |
 | `--type` | Optional: `task` (default), `project` (a milestone), `bug`, `feature`, `chore`, `docs` |
 | `--parent` | Optional: id of a parent item, such as a milestone (`240`, `#240` or `-` for the most recent) |
+| `--remote` | Optional: file under this git remote URL instead of the current repo's (no branch is stored) |
 
 Git remote, branch, device, and timestamp are auto-detected by the CLI.
 
@@ -70,6 +71,9 @@ park show <id>
 # Set or clear the parent of an item
 park edit <id> --parent <parent-id>
 park edit <id> --parent ""
+
+# Move an item to another git remote (clears the branch; "" clears both)
+park edit <id> --remote <url>
 
 # Mark done (warns if the item has open children)
 park done <id>

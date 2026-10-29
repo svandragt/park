@@ -34,6 +34,8 @@ park edit <id> --append-body "new notes"   # adds to the body instead of replaci
 park edit <id> --status resolved   # equivalent to park done <id>
 park add --name "child" --parent 240   # group under a milestone (240, #240 or - for most recent)
 park edit <id> --parent 240        # set the parent; --parent "" clears it
+park add --name "x" --remote git@github.com:me/other.git   # file under another repo's remote
+park edit <id> --remote <url>      # move to another remote (clears the branch); --remote "" clears both
 park list                          # active items
 park list --current                # scope to current git remote + branch
 park list --status resolved        # resolved items

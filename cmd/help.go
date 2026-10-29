@@ -8,8 +8,8 @@ Usage:
   park <command> [flags]
 
 Commands:
-  add              Park a new item (auto-captures host, remote, branch; --parent links it to a milestone)
-  edit <id>        Update fields on an existing item (--parent sets or clears the parent)
+  add              Park a new item (auto-captures host, remote, branch; --parent links it to a milestone; --remote files it under another remote)
+  edit <id>        Update fields on an existing item (--parent sets or clears the parent; --remote moves it to another remote)
   list, ls         List items (filter by --status/--remote/--branch/--tag/--type/--parent/--current)
   search <kw>      Full-text search across name/description/body/why/how/tags (same filters as list, incl. --parent)
   show <id>        Show full detail for one item (use - for most recent)

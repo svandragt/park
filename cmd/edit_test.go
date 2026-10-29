@@ -89,3 +89,29 @@ func TestRunEdit_RejectsBodyWithAppendBody(t *testing.T) {
 		t.Errorf("body changed to %q despite error", got.Body)
 	}
 }
+
+func TestRunEdit_RemoteNormalisesAndClearsBranch(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "foo", Remote: "https://old", Branch: "dev"})
+
+	if err := RunEdit(s, []string{"-", "--remote", "git@github.com:svandragt/mdex.git"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got, _ := s.Get(id)
+	if got.Remote != "https://github.com/svandragt/mdex" || got.Branch != "" {
+		t.Errorf("remote/branch = %q/%q", got.Remote, got.Branch)
+	}
+}
+
+func TestRunEdit_EmptyRemoteClearsBoth(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "foo", Remote: "https://old", Branch: "dev"})
+
+	if err := RunEdit(s, []string{"-", "--remote", ""}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got, _ := s.Get(id)
+	if got.Remote != "" || got.Branch != "" {
+		t.Errorf("remote/branch = %q/%q", got.Remote, got.Branch)
+	}
+}

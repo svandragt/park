@@ -517,3 +517,26 @@ func TestRetypeAll_RewritesMatchingRowsAndEmitsEditPerItem(t *testing.T) {
 		t.Errorf("expected 2 tasks, got %d", len(tasks))
 	}
 }
+
+func TestUpdate_RemoteAndBranch(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "a", Remote: "https://old", Branch: "main"})
+
+	sink := &fakeSink{}
+	s.SetSink(sink)
+
+	r, b := "https://new", ""
+	if err := s.Update(id, park.UpdateFields{Remote: &r, Branch: &b}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got, _ := s.Get(id)
+	if got.Remote != "https://new" || got.Branch != "" {
+		t.Errorf("remote/branch = %q/%q", got.Remote, got.Branch)
+	}
+	if len(sink.events) != 1 || sink.events[0].Fields["remote"] != "https://new" || sink.events[0].Fields["branch"] != "" {
+		t.Errorf("unexpected events: %+v", sink.events)
+	}
+	if _, ok := sink.events[0].Fields["branch"]; !ok {
+		t.Error("event lacks branch field")
+	}
+}

@@ -19,6 +19,7 @@ func RunAdd(store *park.Store, args []string) error {
 	tags := fs.String("tags", "", "comma-separated tags")
 	typ := fs.String("type", "task", "item type")
 	parentRef := fs.String("parent", "", "parent item id (#240, 240 or - for most recent)")
+	remoteFlag := fs.String("remote", "", "file under this git remote instead of the current repo's")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -33,7 +34,10 @@ func RunAdd(store *park.Store, args []string) error {
 	}
 
 	device, _ := os.Hostname()
-	rawRemote := currentRemote()
+	rawRemote, branch := *remoteFlag, ""
+	if rawRemote == "" {
+		rawRemote, branch = currentRemote(), currentBranch()
+	}
 	rawRemote = strings.TrimSuffix(rawRemote, ".git")
 	remote := resolveRemote(rawRemote)
 	if remote != rawRemote && rawRemote != "" {
@@ -41,7 +45,6 @@ func RunAdd(store *park.Store, args []string) error {
 			fmt.Printf("remote renamed: %s → %s (%d item(s) updated)\n", rawRemote, remote, n)
 		}
 	}
-	branch := currentBranch()
 
 	id, err := store.Add(park.Item{
 		Name:        *name,

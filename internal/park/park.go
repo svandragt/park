@@ -230,6 +230,8 @@ type UpdateFields struct {
 	Tags        *string
 	Type        *string
 	Parent      *string
+	Remote      *string
+	Branch      *string
 }
 
 func (s *Store) Update(id int64, f UpdateFields) error {
@@ -275,6 +277,16 @@ func (s *Store) Update(id int64, f UpdateFields) error {
 		sets = append(sets, "parent = ?")
 		args = append(args, *f.Parent)
 		fields["parent"] = *f.Parent
+	}
+	if f.Remote != nil {
+		sets = append(sets, "remote = ?")
+		args = append(args, *f.Remote)
+		fields["remote"] = *f.Remote
+	}
+	if f.Branch != nil {
+		sets = append(sets, "branch = ?")
+		args = append(args, *f.Branch)
+		fields["branch"] = *f.Branch
 	}
 	if len(sets) == 0 {
 		return nil

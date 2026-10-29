@@ -28,6 +28,7 @@ func RunEdit(store *park.Store, args []string) error {
 	typ := fs.String("type", "", "new type")
 	status := fs.String("status", "", "new status (active/resolved/archived)")
 	parentRef := fs.String("parent", "", "new parent item id (#240, 240 or - for most recent; empty clears)")
+	remote := fs.String("remote", "", "new git remote URL; also clears the branch; empty clears both")
 
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
@@ -60,6 +61,9 @@ func RunEdit(store *park.Store, args []string) error {
 			statusSet = true
 		case "parent":
 			parentSet = true
+		case "remote":
+			v, empty := normalizeRemote(*remote), ""
+			f.Remote, f.Branch = &v, &empty
 		}
 	})
 
