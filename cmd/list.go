@@ -14,7 +14,7 @@ func RunList(store *park.Store, args []string) error {
 	remote := fs.String("remote", "", "filter by git remote URL")
 	branch := fs.String("branch", "", "filter by branch name")
 	tag := fs.String("tag", "", "filter by tag")
-	typ := fs.String("type", "", "filter by type (task/project/bug/feature/chore/docs)")
+	typ := fs.String("type", "", "filter by type ("+strings.Join(itemTypes, "/")+")")
 	parentRef := fs.String("parent", "", "filter by parent item id (#240, 240 or -)")
 	current := fs.Bool("current", false, "filter by current git remote and branch")
 
@@ -79,3 +79,5 @@ func formatItems(items []park.Item) string {
 	}
 	return b.String()
 }
+
+var itemTypes = []string{"task", "project", "bug", "feature", "chore", "docs"}
