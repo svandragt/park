@@ -32,7 +32,7 @@ go install github.com/svandragt/park@latest
 ```bash
 park add --name "fix auth bug" --desc "Session token issue" --body "..." --why "Blocks release" --how "Start at auth.go:42"
 park edit <id> --body "updated context" --tags "auth,urgent"
-park edit <id> --append-body "new notes"   # adds to the body instead of replacing it
+park edit <id> --append-body "new notes"   # adds to the body instead of replacing it; --append-how does the same for how-to-apply
 park edit <id> --status resolved   # equivalent to park done <id>
 park add --name "child" --parent 240   # group under a milestone (240, #240 or - for most recent)
 park edit <id> --parent 240        # set the parent; --parent "" clears it
