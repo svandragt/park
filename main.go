@@ -75,11 +75,11 @@ func run() error {
 	sub := os.Args[1]
 	args := os.Args[2:]
 
-	// sync-seed reads the local db to bootstrap the log and must not be
-	// affected by a partial fold first; every other command folds in
-	// whatever's new before it runs. A fold error is non-fatal: the user's
+	// sync-seed and rebuild manage the fold themselves (a startup fold would
+	// corrupt seed's source and inflate rebuild's counts); every other command
+	// folds in whatever's new before it runs. A fold error is non-fatal: the user's
 	// command should still proceed against what's already local.
-	if syncDir != "" && sub != "sync-seed" {
+	if syncDir != "" && foldsAtStartup(sub) {
 		if _, err := store.Fold(syncDir); err != nil {
 			fmt.Fprintln(os.Stderr, "park: fold warning:", err)
 		}
@@ -121,4 +121,9 @@ func run() error {
 	default:
 		return fmt.Errorf("unknown command: %s (run 'park help')", sub)
 	}
+}
+
+// foldsAtStartup reports whether sub should fold the sync logs before it runs.
+func foldsAtStartup(sub string) bool {
+	return sub != "sync-seed" && sub != "rebuild"
 }
