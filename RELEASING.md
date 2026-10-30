@@ -3,7 +3,7 @@
 `park` reports its version via the module version Go records at install time, and
 there is no build automation. A release is a git tag plus a matching GitHub
 release. Users install from source with `go install`, so a tag is what
-`park version` reports for anyone who installs that tagged version. After you install or upgrade, check that `command -v park` points at the binary you just installed and run `park version` to confirm the new build, because if another `park` comes earlier on your `PATH`, that one runs instead of the new one.
+`park version` reports for anyone who installs that tagged version. After you install or upgrade, check that `command -v park` points at the new binary and run `park version` to confirm the new build, because if another `park` comes earlier on your `PATH`, that one runs instead of the new one.
 
 ## Versioning
 
