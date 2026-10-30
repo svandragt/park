@@ -35,7 +35,7 @@ Set `PARK_SYNC_DIR` to enable multi-machine sync; leave it unset for a single ma
 | `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`, `--status`, `--parent`, `--remote`; `--parent ""` clears; `--remote` also clears the branch, and `--remote ""` clears both); `--append-body` and `--append-how` add to a field instead of replacing it |
 | `list` / `ls` | List items filtered by `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--parent` (default status: `active`); shows tags inline; `--parent` adds a `#<id> <name>  <done>/<total> done` header |
 | `search <keyword>` | Full-text search across name, description, body, why, how-to-apply, tags (FTS5, porter stemming); supports `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--parent`, `--current` filters (default status: `active`) |
-| `show <id>` | Full detail view of one item, including its parent and a `Children:` block with a done count |
+| `show <id>` / `show --current` | Full detail view of one item (`--current`: the first active item for the current remote and branch, in `list` order), including its parent and a `Children:` block with a done count |
 | `done <id>` | Set status → `resolved`; warns (without blocking) if the item has open children |
 | `archive <id>` | Set status → `archived` |
 | `reopen <id>` | Set status → `active` (reverse done/archive) |

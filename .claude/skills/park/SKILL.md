@@ -68,6 +68,9 @@ park list --remote https://github.com/org/repo
 # Show full detail
 park show <id>
 
+# Show the first active item for the current git remote and branch
+park show --current
+
 # Set or clear the parent of an item
 park edit <id> --parent <parent-id>
 park edit <id> --parent ""

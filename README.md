@@ -55,6 +55,7 @@ park search --remote github.com/org/repo "fix"  # search within a repo
 park search --current "token"      # search in current git remote + branch
 park show <id>                     # full detail
 park show -                        # show most recently added item
+park show --current                # first active item for the current remote + branch
 park done <id>                     # mark resolved
 park done -                        # resolve most recently added item
 park archive <id>                  # archive

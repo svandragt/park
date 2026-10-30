@@ -8,15 +8,31 @@ import (
 
 func RunShow(store *park.Store, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: park show <id>")
+		return fmt.Errorf("usage: park show <id> | park show --current")
 	}
-	id, err := parseID(store, args[0])
-	if err != nil {
-		return err
-	}
-	it, err := store.Get(id)
-	if err != nil {
-		return err
+	var it *park.Item
+	if args[0] == "--current" {
+		items, err := store.List(park.ListFilter{
+			Status: "active",
+			Remote: normalizeRemote(currentRemote()),
+			Branch: currentBranch(),
+		})
+		if err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			return fmt.Errorf("no active items for this remote and branch")
+		}
+		it = &items[0]
+	} else {
+		id, err := parseID(store, args[0])
+		if err != nil {
+			return err
+		}
+		it, err = store.Get(id)
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Printf("# %s  [#%d · %s]\n\n", it.Name, it.ID, it.Status)

@@ -12,7 +12,7 @@ Commands:
   edit <id>        Update fields on an existing item (--parent sets or clears the parent; --remote moves it to another remote)
   list, ls         List items (filter by --status/--remote/--branch/--tag/--type/--parent/--current)
   search <kw>      Full-text search across name/description/body/why/how/tags (same filters as list, incl. --parent)
-  show <id>        Show full detail for one item (use - for most recent)
+  show <id>        Show full detail for one item (use - for most recent, --current for the first active item on this remote and branch)
   done <id>        Mark item resolved (use - for most recent)
   archive <id>     Archive item
   reopen <id>      Move item back to active
