@@ -25,6 +25,8 @@ A CLI tool for saving and recalling human work context, backed by SQLite. (priva
 go install github.com/svandragt/park@latest
 ```
 
+`go install` writes the binary to `$(go env GOBIN)`, or to `$(go env GOPATH)/bin` if `GOBIN` is unset. Check that `command -v park` points at the binary you just installed, because if another `park` comes earlier on your `PATH` (for example `~/.local/bin/park`), that one runs instead. Run `park version` to confirm the new build before anything destructive such as `park rebuild`.
+
 ## Usage
 
 ```bash
