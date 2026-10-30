@@ -18,13 +18,22 @@ func RunSearch(store *park.Store, args []string) error {
 	parentRef := fs.String("parent", "", "filter by parent item id (#240, 240 or -)")
 	current := fs.Bool("current", false, "filter by current git remote and branch")
 
-	if err := fs.Parse(args); err != nil {
-		return err
+	// flag stops at the first positional, so parse again after each keyword word.
+	var words []string
+	for {
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if fs.NArg() == 0 {
+			break
+		}
+		words = append(words, fs.Arg(0))
+		args = fs.Args()[1:]
 	}
-	if fs.NArg() == 0 {
+	if len(words) == 0 {
 		return fmt.Errorf("usage: park search [--status all] [--remote URL] [--branch NAME] [--tag TAG] [--type TYPE] [--parent ID] [--current] <keyword>")
 	}
-	keyword := strings.Join(fs.Args(), " ")
+	keyword := strings.Join(words, " ")
 
 	if *current {
 		*remote = currentRemote()
