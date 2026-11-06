@@ -168,8 +168,10 @@ or pass `--agent claude`, `--agent codex`, or `--settings <path>` to target one 
 
 At the start of each session, `park hook run` reads the session's working directory,
 resolves its git remote, and injects that repo's active items as session context, one
-line per item with its name and tags. The agent runs `park search` or `park list --tag`
-for the detail. You also
+line per item with its name and tags. Tags that the name already contains are left out,
+so more items fit in the part of the context the agent reads. To keep every tag, change the
+hook command to `park hook run --compact=false`. The agent runs `park search` or
+`park list --tag` for the detail. You also
 see a short summary of the parked items, so you know the hook ran. It
 prints nothing when there is no remote, no database, or nothing parked — a session that
 opens with a hook error is worse than one with no hook.

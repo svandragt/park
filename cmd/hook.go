@@ -21,6 +21,9 @@ const hookCommand = "park hook run"
 // to-do list and the agent starts working on it.
 const hookPreamble = "Parked work for this project (park CLI). Surface anything relevant to the task at hand; do not act on it unprompted. This list shows names and tags only, so before you start a task, run park search <keywords> and, for a ticket, park list --tag <KEY>. Use park show <id> for detail."
 
+// hookPreambleCompact says the same in fewer bytes, for the compact index.
+const hookPreambleCompact = "Parked items here (id name [tags]). Surface anything relevant; do not act on it unprompted. Before a task: park search <words>; for a ticket, park list --tag <KEY>; park show <id> for detail."
+
 // hookTargets maps agent name to its config file, relative to the home directory.
 // Claude Code and Codex share the same hook schema and wire format.
 var hookTargets = map[string]string{
@@ -30,7 +33,7 @@ var hookTargets = map[string]string{
 
 func RunHook(dbPath string, args []string) error {
 	if len(args) > 0 && args[0] == "run" {
-		return hookRunCLI(dbPath)
+		return hookRunCLI(dbPath, args[1:])
 	}
 
 	fs := flag.NewFlagSet("hook", flag.ContinueOnError)
@@ -163,16 +166,47 @@ func installHook(path string) (bool, error) {
 
 // hookRunCLI is the SessionStart hook body. Every failure path is silent: a
 // session that opens with a hook error is worse than one with no hook.
-func hookRunCLI(dbPath string) error {
+func hookRunCLI(dbPath string, args []string) error {
+	compact, err := hookRunCompact(args)
+	if err != nil {
+		return nil
+	}
 	conn, err := db.Open(dbPath)
 	if err != nil {
 		return nil
 	}
 	defer conn.Close()
-	return hookRun(park.New(conn), os.Stdin, os.Stdout)
+	return hookRun(park.New(conn), os.Stdin, os.Stdout, compact)
 }
 
-func hookRun(store *park.Store, in io.Reader, out io.Writer) error {
+// hookRunCompact parses the flags of park hook run.
+func hookRunCompact(args []string) (bool, error) {
+	fs := flag.NewFlagSet("hook run", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	compact := fs.Bool("compact", true, "drop tags the name repeats and shorten the preamble")
+	err := fs.Parse(args)
+	return *compact, err
+}
+
+// compactTags drops tags that the name or an earlier tag already contains,
+// ignoring case. Search still reads the stored tags.
+func compactTags(name, tags string) string {
+	lowerName := strings.ToLower(name)
+	seen := map[string]bool{}
+	var keep []string
+	for _, t := range strings.Split(tags, ",") {
+		t = strings.TrimSpace(t)
+		k := strings.ToLower(t)
+		if k == "" || seen[k] || strings.Contains(lowerName, k) {
+			continue
+		}
+		seen[k] = true
+		keep = append(keep, t)
+	}
+	return strings.Join(keep, ",")
+}
+
+func hookRun(store *park.Store, in io.Reader, out io.Writer, compact bool) error {
 	var payload struct {
 		Cwd string `json:"cwd"`
 	}
@@ -198,12 +232,20 @@ func hookRun(store *park.Store, in io.Reader, out io.Writer) error {
 	recap := fmt.Sprintf("park: %d parked item(s) here", len(items))
 	// Claude Code shows the agent only the first 2 KB of hook output, so
 	// one line per item keeps more items inside it.
+	preamble, line, sep := hookPreamble, "#%d  %s", "  "
+	if compact {
+		preamble, line, sep = hookPreambleCompact, "%d %s", " "
+	}
 	var index strings.Builder
 	for _, it := range items {
 		recap += fmt.Sprintf("\n  #%d  %s", it.ID, it.Name)
-		fmt.Fprintf(&index, "#%d  %s", it.ID, it.Name)
-		if it.Tags != "" {
-			fmt.Fprintf(&index, "  [%s]", it.Tags)
+		fmt.Fprintf(&index, line, it.ID, it.Name)
+		tags := it.Tags
+		if compact {
+			tags = compactTags(it.Name, tags)
+		}
+		if tags != "" {
+			fmt.Fprintf(&index, "%s[%s]", sep, tags)
 		}
 		index.WriteString("\n")
 	}
@@ -212,7 +254,7 @@ func hookRun(store *park.Store, in io.Reader, out io.Writer) error {
 		"systemMessage": recap,
 		"hookSpecificOutput": map[string]any{
 			"hookEventName":     "SessionStart",
-			"additionalContext": hookPreamble + "\n\n" + index.String(),
+			"additionalContext": preamble + "\n\n" + index.String(),
 		},
 	})
 }

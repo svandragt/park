@@ -37,7 +37,7 @@ func TestHookRun_EmitsSessionContext(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	if err := hookRun(store, strings.NewReader(`{"cwd":"`+dir+`"}`), &out); err != nil {
+	if err := hookRun(store, strings.NewReader(`{"cwd":"`+dir+`"}`), &out, true); err != nil {
 		t.Fatalf("hookRun: %v", err)
 	}
 
@@ -86,19 +86,7 @@ func TestHookRun_OneLinePerItem(t *testing.T) {
 		t.Fatalf("add: %v", err)
 	}
 
-	var out bytes.Buffer
-	if err := hookRun(store, strings.NewReader(`{"cwd":"`+dir+`"}`), &out); err != nil {
-		t.Fatalf("hookRun: %v", err)
-	}
-	var got struct {
-		HookSpecificOutput struct {
-			AdditionalContext string `json:"additionalContext"`
-		} `json:"hookSpecificOutput"`
-	}
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("output is not valid JSON: %v\n%s", err, out.String())
-	}
-	ctx := got.HookSpecificOutput.AdditionalContext
+	ctx := hookContext(t, store, dir, false)
 
 	if want := fmt.Sprintf("#%d  Fix the widget  [BH-1,widget]\n", id); !strings.Contains(ctx, want) {
 		t.Errorf("additionalContext missing line %q:\n%s", want, ctx)
@@ -116,12 +104,76 @@ func TestHookRun_OneLinePerItem(t *testing.T) {
 	}
 }
 
+// The compact index drops the bytes the preview cannot spare: tags the name
+// or an earlier tag already contains, and the "#" before each id.
+func TestHookRun_CompactDropsRedundantTags(t *testing.T) {
+	store := newTestStore(t)
+	dir := newTestRepo(t, "https://github.com/svandragt/park")
+	id, err := store.Add(park.Item{
+		Name:   "BH-716: fix the widget",
+		Tags:   "bh,BH-716,widget,consent,Consent",
+		Remote: "https://github.com/svandragt/park",
+	})
+	if err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if _, err := store.Add(park.Item{Name: "Untagged item", Tags: "untagged", Remote: "https://github.com/svandragt/park"}); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+
+	ctx := hookContext(t, store, dir, true)
+
+	if want := fmt.Sprintf("\n%d BH-716: fix the widget [consent]\n", id); !strings.Contains(ctx, want) {
+		t.Errorf("additionalContext missing line %q:\n%s", want, ctx)
+	}
+	if !strings.Contains(ctx, " Untagged item\n") {
+		t.Errorf("item whose tags all repeat its name should have no tags part:\n%s", ctx)
+	}
+	for _, want := range []string{"do not act on it unprompted", "park search", "park list --tag"} {
+		if !strings.Contains(ctx, want) {
+			t.Errorf("compact preamble missing %q:\n%s", want, ctx)
+		}
+	}
+}
+
+func TestRunHook_CompactFlag(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want bool
+	}{
+		{[]string{"run"}, true},
+		{[]string{"run", "--compact=false"}, false},
+	} {
+		got, err := hookRunCompact(tc.args[1:])
+		if err != nil || got != tc.want {
+			t.Errorf("hookRunCompact(%v) = %v, %v; want %v", tc.args[1:], got, err, tc.want)
+		}
+	}
+}
+
+func hookContext(t *testing.T, store *park.Store, dir string, compact bool) string {
+	t.Helper()
+	var out bytes.Buffer
+	if err := hookRun(store, strings.NewReader(`{"cwd":"`+dir+`"}`), &out, compact); err != nil {
+		t.Fatalf("hookRun: %v", err)
+	}
+	var got struct {
+		HookSpecificOutput struct {
+			AdditionalContext string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", err, out.String())
+	}
+	return got.HookSpecificOutput.AdditionalContext
+}
+
 func TestHookRun_SilentWhenNothingParked(t *testing.T) {
 	store := newTestStore(t)
 	dir := newTestRepo(t, "https://github.com/svandragt/park")
 
 	var out bytes.Buffer
-	if err := hookRun(store, strings.NewReader(`{"cwd":"`+dir+`"}`), &out); err != nil {
+	if err := hookRun(store, strings.NewReader(`{"cwd":"`+dir+`"}`), &out, true); err != nil {
 		t.Fatalf("hookRun: %v", err)
 	}
 	if out.Len() != 0 {
@@ -134,7 +186,7 @@ func TestHookRun_SilentOutsideGitRepo(t *testing.T) {
 	dir := t.TempDir()
 
 	var out bytes.Buffer
-	if err := hookRun(store, strings.NewReader(`{"cwd":"`+dir+`"}`), &out); err != nil {
+	if err := hookRun(store, strings.NewReader(`{"cwd":"`+dir+`"}`), &out, true); err != nil {
 		t.Fatalf("hookRun: %v", err)
 	}
 	if out.Len() != 0 {
@@ -146,7 +198,7 @@ func TestHookRun_SilentOnGarbagePayload(t *testing.T) {
 	store := newTestStore(t)
 
 	var out bytes.Buffer
-	if err := hookRun(store, strings.NewReader("not json"), &out); err != nil {
+	if err := hookRun(store, strings.NewReader("not json"), &out, true); err != nil {
 		t.Fatalf("hookRun: %v", err)
 	}
 	if out.Len() != 0 {
