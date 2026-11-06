@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,6 +65,54 @@ func TestHookRun_EmitsSessionContext(t *testing.T) {
 	// agent silently, which reads as "the hook never fired".
 	if !strings.Contains(got.SystemMessage, "Fix the widget") {
 		t.Errorf("systemMessage missing item name:\n%s", got.SystemMessage)
+	}
+}
+
+// Claude Code shows the agent only the first 2 KB of hook output, so each
+// item gets one line and the agent searches for the detail.
+func TestHookRun_OneLinePerItem(t *testing.T) {
+	store := newTestStore(t)
+	dir := newTestRepo(t, "https://github.com/svandragt/park")
+	id, err := store.Add(park.Item{
+		Name:        "Fix the widget",
+		Description: "The widget leaks memory",
+		Tags:        "BH-1,widget",
+		Remote:      "https://github.com/svandragt/park",
+	})
+	if err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if _, err := store.Add(park.Item{Name: "Untagged item", Remote: "https://github.com/svandragt/park"}); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+
+	var out bytes.Buffer
+	if err := hookRun(store, strings.NewReader(`{"cwd":"`+dir+`"}`), &out); err != nil {
+		t.Fatalf("hookRun: %v", err)
+	}
+	var got struct {
+		HookSpecificOutput struct {
+			AdditionalContext string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", err, out.String())
+	}
+	ctx := got.HookSpecificOutput.AdditionalContext
+
+	if want := fmt.Sprintf("#%d  Fix the widget  [BH-1,widget]\n", id); !strings.Contains(ctx, want) {
+		t.Errorf("additionalContext missing line %q:\n%s", want, ctx)
+	}
+	if !strings.Contains(ctx, "  Untagged item\n") || strings.Contains(ctx, "Untagged item  [") {
+		t.Errorf("untagged item should have no tags part:\n%s", ctx)
+	}
+	for _, unwanted := range []string{"The widget leaks memory", "https://github.com/svandragt/park"} {
+		if strings.Contains(ctx, unwanted) {
+			t.Errorf("additionalContext should not contain %q:\n%s", unwanted, ctx)
+		}
+	}
+	if !strings.Contains(ctx, "park search") {
+		t.Errorf("additionalContext should tell the agent to search:\n%s", ctx)
 	}
 }
 

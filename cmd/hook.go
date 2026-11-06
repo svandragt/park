@@ -19,7 +19,7 @@ const hookCommand = "park hook run"
 // hookPreamble frames the item list for the agent. The "do not act on it
 // unprompted" clause is load-bearing: without it a parked item reads as a
 // to-do list and the agent starts working on it.
-const hookPreamble = "Parked work for this project (park CLI). Surface anything relevant to the task at hand; do not act on it unprompted. Use park show <id> for detail."
+const hookPreamble = "Parked work for this project (park CLI). Surface anything relevant to the task at hand; do not act on it unprompted. This list shows names and tags only, so before you start a task, run park search <keywords> and, for a ticket, park list --tag <KEY>. Use park show <id> for detail."
 
 // hookTargets maps agent name to its config file, relative to the home directory.
 // Claude Code and Codex share the same hook schema and wire format.
@@ -196,15 +196,23 @@ func hookRun(store *park.Store, in io.Reader, out io.Writer) error {
 	// systemMessage is the only field the user sees; additionalContext reaches
 	// the agent silently.
 	recap := fmt.Sprintf("park: %d parked item(s) here", len(items))
+	// Claude Code shows the agent only the first 2 KB of hook output, so
+	// one line per item keeps more items inside it.
+	var index strings.Builder
 	for _, it := range items {
 		recap += fmt.Sprintf("\n  #%d  %s", it.ID, it.Name)
+		fmt.Fprintf(&index, "#%d  %s", it.ID, it.Name)
+		if it.Tags != "" {
+			fmt.Fprintf(&index, "  [%s]", it.Tags)
+		}
+		index.WriteString("\n")
 	}
 
 	return json.NewEncoder(out).Encode(map[string]any{
 		"systemMessage": recap,
 		"hookSpecificOutput": map[string]any{
 			"hookEventName":     "SessionStart",
-			"additionalContext": hookPreamble + "\n\n" + formatItems(items),
+			"additionalContext": hookPreamble + "\n\n" + index.String(),
 		},
 	})
 }
