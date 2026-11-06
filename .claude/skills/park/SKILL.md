@@ -1,7 +1,7 @@
 ---
 name: park
-version: 1.3.0
-description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
+version: 1.4.0
+description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles switching to work on a ticket (BH-740, ABC-123): lists every parked item for it. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
 author: svandragt
 ---
 
@@ -18,7 +18,8 @@ Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.d
 5. When the user wants to work on, resume, or unpark an item, run `park show <id>` and present the full context (body, why, how) so they can pick up immediately.
 6. When the user wants to reopen a resolved/archived item, run `park reopen <id>`.
 7. Parked items surface at session start only if the `SessionStart` hook is installed. If the user is surprised that an item did not surface, or asks how to be reminded automatically, run `park hook --install` and tell them it takes effect next session.
-8. Never mention park IDs in anything that leaves this machine — PR descriptions, commit messages, GitHub issues, comments. The park DB is local to the user only, so `#3` means nothing to anyone else. Say "is parked" or "tracked locally" instead. Park IDs are fine in chat replies to the user.
+8. When the session switches to work on a ticket, list every parked item for it before starting: run `park list --status active --tag <KEY>`, then `park search "<KEY>"` for items that name the key only in their text. Read each hit with `park show <id>` and present them all. The session-start hook preview shows only the newest few items, so older items for the ticket are missing from it.
+9. Never mention park IDs in anything that leaves this machine — PR descriptions, commit messages, GitHub issues, comments. The park DB is local to the user only, so `#3` means nothing to anyone else. Say "is parked" or "tracked locally" instead. Park IDs are fine in chat replies to the user.
 
 ## Proactive parking
 
@@ -40,7 +41,7 @@ A finding raised mid-task costs attention whether or not it's acted on; a list a
 | `--body` | The current context: what file/function/problem, current state |
 | `--why` | Why this matters / what the end goal is |
 | `--how` | Concrete next step to resume from here |
-| `--tags` | Optional: relevant keywords (language, area, feature name) |
+| `--tags` | The exact ticket key(s) when the item belongs to a ticket (`BH-818,BH-817`), plus optional keywords (language, area, feature name). A ticket can have several items. |
 | `--type` | Optional: `task` (default), `project` (a milestone), `bug`, `feature`, `chore`, `docs` |
 | `--parent` | Optional: id of a parent item, such as a milestone (`240`, `#240` or `-` for the most recent) |
 | `--remote` | Optional: file under this git remote URL instead of the current repo's (no branch is stored) |
