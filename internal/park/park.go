@@ -3,6 +3,7 @@ package park
 import (
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/svandragt/park/internal/synclog"
@@ -142,7 +143,7 @@ SELECT p.id, p.name, p.description, p.type, p.body, p.why, p.how_to_apply,
 FROM parks_fts f
 JOIN parks p ON p.id = f.rowid
 WHERE parks_fts MATCH ?`
-	args := []any{keyword}
+	args := []any{ftsQuery(keyword)}
 	if f.Status != "" {
 		query += ` AND p.status = ?`
 		args = append(args, f.Status)
@@ -464,4 +465,14 @@ func (s *Store) SetStatus(id int64, status string) error {
 		s.emit(synclog.Event{UID: uid, Op: "status", TS: time.Now().UTC().Format(time.RFC3339Nano), Fields: map[string]any{"status": status}})
 	}
 	return nil
+}
+
+// ftsQuery quotes each word as an FTS5 string, so "-", ":" and quotes in
+// input such as BH-716 search as text instead of parsing as operators.
+func ftsQuery(keyword string) string {
+	words := strings.Fields(keyword)
+	for i, w := range words {
+		words[i] = `"` + strings.ReplaceAll(w, `"`, `""`) + `"`
+	}
+	return strings.Join(words, " ")
 }

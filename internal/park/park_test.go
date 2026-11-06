@@ -540,3 +540,25 @@ func TestUpdate_RemoteAndBranch(t *testing.T) {
 		t.Error("event lacks branch field")
 	}
 }
+
+func TestSearch_HyphenatedTicketKey(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: "follow up BH-716 email"})
+
+	results, err := s.Search("BH-716", park.ListFilter{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+}
+
+func TestSearch_QuoteInKeyword(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: `say "hello" world`})
+
+	if _, err := s.Search(`"hello`, park.ListFilter{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
