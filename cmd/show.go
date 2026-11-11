@@ -35,6 +35,8 @@ func RunShow(store *park.Store, args []string) error {
 		}
 	}
 
+	_ = store.MarkViewed(it.ID)
+
 	fmt.Printf("# %s  [#%d · %s]\n\n", it.Name, it.ID, it.Status)
 	if it.Description != "" {
 		fmt.Printf("**%s**\n\n", it.Description)

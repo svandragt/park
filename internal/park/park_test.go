@@ -562,3 +562,56 @@ func TestSearch_QuoteInKeyword(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestMentions_MatchesActiveItemsOnRemoteByLiteralText(t *testing.T) {
+	s := newTestStore(t)
+	remote := "https://github.com/x/y"
+	hit, _ := s.Add(park.Item{Name: "in body", Body: "see cmd/my_file.go for the leak", Remote: remote})
+	_, _ = s.Add(park.Item{Name: "wildcard lookalike", Body: "cmd/myXfile.go", Remote: remote})
+	_, _ = s.Add(park.Item{Name: "other remote", Body: "cmd/my_file.go", Remote: "https://github.com/x/z"})
+	done, _ := s.Add(park.Item{Name: "resolved", Body: "cmd/my_file.go", Remote: remote})
+	s.SetStatus(done, "resolved")
+	pct, _ := s.Add(park.Item{Name: "100% done", Remote: remote})
+
+	got, err := s.Mentions(remote, "cmd/my_file.go")
+	if err != nil {
+		t.Fatalf("Mentions: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != hit {
+		t.Errorf("got %+v, want only item %d", got, hit)
+	}
+
+	got, _ = s.Mentions(remote, "100%")
+	if len(got) != 1 || got[0].ID != pct {
+		t.Errorf("%% must match literally, got %+v", got)
+	}
+}
+
+func TestMarkViewed_SetsLastViewedAtOnly(t *testing.T) {
+	s := newTestStore(t)
+	sink := &fakeSink{}
+	s.SetSink(sink)
+	id, _ := s.Add(park.Item{Name: "viewed"})
+	sink.events = nil
+	if _, err := s.DB().Exec(`UPDATE parks SET updated_at = '2020-01-02 03:04:05' WHERE id = ?`, id); err != nil {
+		t.Fatalf("seed updated_at: %v", err)
+	}
+
+	if err := s.MarkViewed(id); err != nil {
+		t.Fatalf("MarkViewed: %v", err)
+	}
+
+	var viewed, updated string
+	if err := s.DB().QueryRow(`SELECT last_viewed_at, CAST(updated_at AS TEXT) FROM parks WHERE id = ?`, id).Scan(&viewed, &updated); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if viewed == "" {
+		t.Error("last_viewed_at not set")
+	}
+	if updated != "2020-01-02 03:04:05" {
+		t.Errorf("updated_at changed to %q", updated)
+	}
+	if len(sink.events) != 0 {
+		t.Errorf("MarkViewed emitted %d sync events, want 0", len(sink.events))
+	}
+}

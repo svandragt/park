@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -237,7 +238,7 @@ func sessionStartCommands(t *testing.T, path string) []string {
 func TestInstallHook_CreatesMissingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "settings.json")
 
-	added, err := installHook(path)
+	added, err := installHook(path, false)
 	if err != nil {
 		t.Fatalf("installHook: %v", err)
 	}
@@ -263,7 +264,7 @@ func TestInstallHook_PreservesExistingHooks(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 
-	if _, err := installHook(path); err != nil {
+	if _, err := installHook(path, false); err != nil {
 		t.Fatalf("installHook: %v", err)
 	}
 
@@ -281,10 +282,10 @@ func TestInstallHook_PreservesExistingHooks(t *testing.T) {
 func TestInstallHook_Idempotent(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 
-	if _, err := installHook(path); err != nil {
+	if _, err := installHook(path, false); err != nil {
 		t.Fatalf("first install: %v", err)
 	}
-	added, err := installHook(path)
+	added, err := installHook(path, false)
 	if err != nil {
 		t.Fatalf("second install: %v", err)
 	}
@@ -293,5 +294,247 @@ func TestInstallHook_Idempotent(t *testing.T) {
 	}
 	if cmds := sessionStartCommands(t, path); len(cmds) != 1 {
 		t.Errorf("commands = %v, want exactly one entry", cmds)
+	}
+}
+
+const testRemote = "https://github.com/svandragt/park"
+
+// hookFileOut runs hookFile for a tool call on file in repo dir and returns
+// its raw output.
+func hookFileOut(t *testing.T, store *park.Store, dir, sessionID, file string) string {
+	t.Helper()
+	payload, _ := json.Marshal(map[string]any{
+		"cwd":        dir,
+		"session_id": sessionID,
+		"tool_input": map[string]any{"file_path": file},
+	})
+	var out bytes.Buffer
+	if err := hookFile(store, bytes.NewReader(payload), &out); err != nil {
+		t.Fatalf("hookFile: %v", err)
+	}
+	return out.String()
+}
+
+// hookFileLines returns the item lines of hookFile's additionalContext, or nil
+// when it printed nothing.
+func hookFileLines(t *testing.T, raw string) []string {
+	t.Helper()
+	if raw == "" {
+		return nil
+	}
+	var got struct {
+		HookSpecificOutput struct {
+			HookEventName     string `json:"hookEventName"`
+			AdditionalContext string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal([]byte(raw), &got); err != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", err, raw)
+	}
+	if got.HookSpecificOutput.HookEventName != "PostToolUse" {
+		t.Errorf("hookEventName = %q, want PostToolUse", got.HookSpecificOutput.HookEventName)
+	}
+	preamble, lines, ok := strings.Cut(got.HookSpecificOutput.AdditionalContext, "\n\n")
+	if !ok || !strings.Contains(preamble, "do not act unprompted") || !strings.Contains(preamble, "park show <id>") {
+		t.Errorf("unexpected preamble %q", preamble)
+	}
+	return strings.Split(strings.TrimSuffix(lines, "\n"), "\n")
+}
+
+func TestHookFile_SurfacesItemNamingTheFile(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	id, _ := store.Add(park.Item{Name: "Leak in the hook", Body: "see cmd/hook.go", Remote: testRemote})
+	store.Add(park.Item{Name: "Elsewhere", Body: "see cmd/hook.go", Remote: "https://github.com/other/repo"})
+	store.Add(park.Item{Name: "Unrelated", Body: "see cmd/list.go", Remote: testRemote})
+
+	lines := hookFileLines(t, hookFileOut(t, store, dir, "s1", filepath.Join(dir, "cmd", "hook.go")))
+
+	if want := fmt.Sprintf("#%d  Leak in the hook", id); len(lines) != 1 || lines[0] != want {
+		t.Errorf("lines = %q, want [%q]", lines, want)
+	}
+}
+
+func TestHookFile_ShowsEachItemOncePerSession(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	store.Add(park.Item{Name: "Leak", Body: "cmd/hook.go", Remote: testRemote})
+	file := filepath.Join(dir, "cmd", "hook.go")
+
+	if hookFileOut(t, store, dir, "s1", file) == "" {
+		t.Fatal("first call printed nothing")
+	}
+	if got := hookFileOut(t, store, dir, "s1", file); got != "" {
+		t.Errorf("second call in the same session printed %q", got)
+	}
+	if hookFileOut(t, store, dir, "s2", file) == "" {
+		t.Error("a new session printed nothing")
+	}
+	// No session_id means no record to dedupe against.
+	for range 2 {
+		if hookFileOut(t, store, dir, "", file) == "" {
+			t.Error("a call without session_id printed nothing")
+		}
+	}
+}
+
+func TestHookFile_SanitisesSessionID(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	store.Add(park.Item{Name: "Leak", Body: "cmd/hook.go", Remote: testRemote})
+
+	hookFileOut(t, store, dir, "../evil/id", filepath.Join(dir, "cmd", "hook.go"))
+
+	if _, err := os.Stat(filepath.Join(tmp, "park-hook-evilid")); err != nil {
+		t.Errorf("expected a sanitised record file: %v", err)
+	}
+}
+
+func TestHookFile_FallsBackToBasename(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	id, _ := store.Add(park.Item{Name: "Moved file", Body: "hook.go used to live in src", Remote: testRemote})
+
+	lines := hookFileLines(t, hookFileOut(t, store, dir, "s1", filepath.Join(dir, "cmd", "hook.go")))
+
+	if want := fmt.Sprintf("#%d  Moved file", id); len(lines) != 1 || lines[0] != want {
+		t.Errorf("lines = %q, want [%q]", lines, want)
+	}
+}
+
+func TestHookFile_DropsBasenameMatchesWhenTooMany(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	for i := range 6 {
+		store.Add(park.Item{Name: fmt.Sprintf("Page %d", i), Body: fmt.Sprintf("pages/p%d/index.php", i), Remote: testRemote})
+	}
+
+	if got := hookFileOut(t, store, dir, "s1", filepath.Join(dir, "x", "index.php")); got != "" {
+		t.Errorf("expected no output for a basename shared by 6 items, got %q", got)
+	}
+}
+
+func TestHookFile_ListsAtMostFiveItems(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	for i := range 7 {
+		store.Add(park.Item{Name: fmt.Sprintf("Item %d", i), Body: "cmd/hook.go", Remote: testRemote})
+	}
+
+	lines := hookFileLines(t, hookFileOut(t, store, dir, "s1", filepath.Join(dir, "cmd", "hook.go")))
+
+	if len(lines) != 5 {
+		t.Errorf("got %d lines, want 5: %q", len(lines), lines)
+	}
+}
+
+func TestHookFile_SilentOnBadInput(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	store.Add(park.Item{Name: "Leak", Body: "cmd/hook.go", Remote: testRemote})
+
+	for name, payload := range map[string]string{
+		"garbage":           "not json",
+		"empty":             "",
+		"no file_path":      `{"cwd":"` + dir + `","tool_input":{}}`,
+		"no cwd":            `{"tool_input":{"file_path":"` + filepath.Join(dir, "cmd", "hook.go") + `"}}`,
+		"outside the repo":  `{"cwd":"` + dir + `","tool_input":{"file_path":"/etc/cmd/hook.go"}}`,
+		"relative path":     `{"cwd":"` + dir + `","tool_input":{"file_path":"cmd/hook.go"}}`,
+		"cwd not a git dir": `{"cwd":"` + t.TempDir() + `","tool_input":{"file_path":"/x/cmd/hook.go"}}`,
+	} {
+		var out bytes.Buffer
+		if err := hookFile(store, strings.NewReader(payload), &out); err != nil || out.Len() != 0 {
+			t.Errorf("%s: err = %v, output = %q; want silence", name, err, out.String())
+		}
+	}
+}
+
+// settingsHooks returns the matcher and command of every hooks.<event> entry.
+func settingsHooks(t *testing.T, path, event string) [][2]string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var cfg struct {
+		Hooks map[string][]struct {
+			Matcher string `json:"matcher"`
+			Hooks   []struct {
+				Command string `json:"command"`
+			} `json:"hooks"`
+		} `json:"hooks"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("parse %s: %v\n%s", path, err, data)
+	}
+	var got [][2]string
+	for _, entry := range cfg.Hooks[event] {
+		for _, h := range entry.Hooks {
+			got = append(got, [2]string{entry.Matcher, h.Command})
+		}
+	}
+	return got
+}
+
+func TestInstallHook_AddsPostToolUseWhenAsked(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+
+	added, err := installHook(path, true)
+	if err != nil || !added {
+		t.Fatalf("installHook = %v, %v; want true, nil", added, err)
+	}
+
+	want := [][2]string{{"Read|Edit|Write|MultiEdit", "park hook file"}}
+	if got := settingsHooks(t, path, "PostToolUse"); !reflect.DeepEqual(got, want) {
+		t.Errorf("PostToolUse = %v, want %v", got, want)
+	}
+	if cmds := sessionStartCommands(t, path); len(cmds) != 1 || cmds[0] != hookCommand {
+		t.Errorf("SessionStart commands = %v, want [%s]", cmds, hookCommand)
+	}
+
+	added, err = installHook(path, true)
+	if err != nil || added {
+		t.Errorf("second install = %v, %v; want false, nil", added, err)
+	}
+	if got := settingsHooks(t, path, "PostToolUse"); len(got) != 1 {
+		t.Errorf("PostToolUse = %v, want exactly one entry", got)
+	}
+}
+
+// An earlier park already wrote the SessionStart hook; the upgrade still has
+// to add the PostToolUse one.
+func TestInstallHook_AddsPostToolUseToExistingInstall(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if _, err := installHook(path, false); err != nil {
+		t.Fatalf("first install: %v", err)
+	}
+
+	added, err := installHook(path, true)
+	if err != nil || !added {
+		t.Fatalf("upgrade = %v, %v; want true, nil", added, err)
+	}
+	if got := settingsHooks(t, path, "PostToolUse"); len(got) != 1 {
+		t.Errorf("PostToolUse = %v, want one entry", got)
+	}
+	if cmds := sessionStartCommands(t, path); len(cmds) != 1 {
+		t.Errorf("SessionStart commands = %v, want exactly one entry", cmds)
+	}
+}
+
+func TestInstallHook_SkipsPostToolUseWhenNotAsked(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hooks.json")
+	if _, err := installHook(path, false); err != nil {
+		t.Fatalf("installHook: %v", err)
+	}
+	if got := settingsHooks(t, path, "PostToolUse"); len(got) != 0 {
+		t.Errorf("PostToolUse = %v, want none", got)
 	}
 }

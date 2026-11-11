@@ -35,7 +35,7 @@ Set `PARK_SYNC_DIR` to enable multi-machine sync; leave it unset for a single ma
 | `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`, `--status`, `--parent`, `--remote`; `--parent ""` clears; `--remote` also clears the branch, and `--remote ""` clears both); `--append-body` and `--append-how` add to a field instead of replacing it |
 | `list` / `ls` | List items filtered by `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--parent` (default status: `active`); shows tags inline; `--parent` adds a `#<id> <name>  <done>/<total> done` header |
 | `search <keyword>` | Full-text search across name, description, body, why, how-to-apply, tags (FTS5, porter stemming); supports `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--parent`, `--current` filters (default status: `active`) |
-| `show <id>` / `show --current` | Full detail view of one item (`--current`: the first active item for the current remote and branch, in `list` order), including its parent and a `Children:` block with a done count |
+| `show <id>` / `show --current` | Full detail view of one item (`--current`: the first active item for the current remote and branch, in `list` order), including its parent and a `Children:` block with a done count. Sets the item's local `last_viewed_at` through `Store.MarkViewed`, which leaves `updated_at` alone and emits no sync event |
 | `done <id>` | Set status → `resolved`; warns (without blocking) if the item has open children |
 | `archive <id>` | Set status → `archived` |
 | `reopen <id>` | Set status → `active` (reverse done/archive) |
@@ -47,7 +47,7 @@ Set `PARK_SYNC_DIR` to enable multi-machine sync; leave it unset for a single ma
 | `sync-seed` | One-time bootstrap: write every existing item to this device's log. Runs on exactly ONE machine; refuses without `--i-understand-this-runs-once` or if the log already has entries |
 | `rebuild` | Drop the local items and offsets, then rebuild from the sync logs alone. Requires `--yes` |
 | `serve` | Start a local web UI (`--addr`, default `127.0.0.1:7654`) over a startup snapshot of the database |
-| `hook` | Print the `SessionStart` hook config; `--install` merges it into the agent settings files (`--agent claude` or `--agent codex`, or `--settings <path>`, targets one file). `hook run` is the hook body: reads the payload on stdin, prints this repo's active items as session context (one line per item: id, name, tags, so more of them fit Claude Code's 2 KB hook preview; `--compact`, on by default, drops tags the name repeats and shortens the preamble) plus a user-visible `systemMessage` summary, silent on every failure |
+| `hook` | Print the `SessionStart` hook config; `--install` merges it into the agent settings files (`--agent claude` or `--agent codex`, or `--settings <path>`, targets one file). `hook run` is the hook body: reads the payload on stdin, prints this repo's active items as session context (one line per item: id, name, tags, so more of them fit Claude Code's 2 KB hook preview; `--compact`, on by default, drops tags the name repeats and shortens the preamble) plus a user-visible `systemMessage` summary, silent on every failure. `hook file` is the `PostToolUse` hook body (Claude Code only, matcher `Read|Edit|Write|MultiEdit`; `--install` adds it to the Claude Code settings only): reads `cwd`, `session_id` and `tool_input.file_path` from stdin, makes the path relative to the git top level and prints up to 5 active items on the current remote whose text contains it (`Store.Mentions`, a `LIKE` match). With no match it falls back to the basename, and drops that match when more than 5 items share it. It records the IDs it has shown in `$TMPDIR/park-hook-<session_id>` so each shows once per session; silent on every failure and when nothing matches |
 | `help` / `--help` / `-h` | Print top-level usage; handled before DB open |
 | `version` / `--version` / `-v` | Print the version; handled before DB open |
 
@@ -73,6 +73,7 @@ Things to preserve when changing this code:
   offset there.
 - **`uid` is the identity; the integer id is a local display handle.** Never match items
   across machines by id, and never quote an id anywhere off-machine.
+- **`last_viewed_at` is local.** `Store.MarkViewed` writes it with no sync event, so it is not in the log, and `rebuild` resets it.
 - **An item's `device` is where it was parked**, which is not the same as the machine that
   wrote the log line. Keep them distinct when adding event fields.
 

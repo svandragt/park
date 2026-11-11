@@ -137,6 +137,15 @@ END;
 		}
 	}
 
+	// Local-only read tracking: MarkViewed sets it, and it never reaches the sync log.
+	var hasViewed int
+	db.QueryRow(`SELECT count(*) FROM pragma_table_info('parks') WHERE name='last_viewed_at'`).Scan(&hasViewed)
+	if hasViewed == 0 {
+		if _, err := db.Exec(`ALTER TABLE parks ADD COLUMN last_viewed_at TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+
 	db.QueryRow(`SELECT count(*) FROM migrations WHERE name='uid_column'`).Scan(&applied)
 	if applied == 0 {
 		if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS parks_uid ON parks(uid) WHERE uid != ''`); err != nil {

@@ -176,7 +176,18 @@ see a short summary of the parked items, so you know the hook ran. It
 prints nothing when there is no remote, no database, or nothing parked — a session that
 opens with a hook error is worse than one with no hook.
 
-The installer merges into any existing `SessionStart` hooks rather than replacing them.
+For Claude Code, the installer also adds `park hook file`, a `PostToolUse` hook on `Read`,
+`Edit`, `Write` and `MultiEdit`. When the agent touches a file that an active item names,
+it sees up to five matching items, one line each, and runs `park show` for the detail.
+The match is the file's path relative to the repository root, or its file name when no item
+names the path and fewer than six items name the file name. Each item shows once per
+session. Codex has no matching event, so its install adds only the `SessionStart` hook.
+
+`park show` records when you last viewed an item. The record stays on the machine and does
+not sync.
+
+The installer merges into any existing `SessionStart` and `PostToolUse` hooks rather than
+replacing them.
 Hooks load at session start, so the change takes effect next session; in Claude Code,
 `/hooks` forces a reload.
 

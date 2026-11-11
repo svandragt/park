@@ -23,7 +23,7 @@ Commands:
   retype           Bulk-change item type (old → new)
   sync-seed        One-time bootstrap: write every existing row into this device's log
   rebuild          Discard local rows and rebuild from the shared log (--yes required)
-  hook             Print the SessionStart hook config (--install to add it)
+  hook             Print the hook config (--install adds the SessionStart hook, plus a PostToolUse hook for Claude Code)
   serve            Start a web UI to browse parked items (--addr, default 127.0.0.1:7654)
   help             Show this help (also --help, -h)
   version          Print the version (also --version, -v)

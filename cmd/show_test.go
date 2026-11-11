@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -43,5 +44,36 @@ func TestRunShow_CurrentNoMatch(t *testing.T) {
 	err := RunShow(s, []string{"--current"})
 	if err == nil || err.Error() != "no active items for this remote and branch" {
 		t.Fatalf("got %v", err)
+	}
+}
+
+// show records a read in last_viewed_at without touching updated_at, which
+// would reorder the lists.
+func TestRunShow_MarksViewed(t *testing.T) {
+	chdirGitRepo(t)
+	for name, args := range map[string]func(id int64) []string{
+		"id":      func(id int64) []string { return []string{fmt.Sprint(id)} },
+		"current": func(int64) []string { return []string{"--current"} },
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := newTestStore(t)
+			id, _ := s.Add(park.Item{Name: "seen", Remote: "https://github.com/x/y", Branch: "feat"})
+			if _, err := s.DB().Exec(`UPDATE parks SET updated_at = '2020-01-02 03:04:05'`); err != nil {
+				t.Fatalf("seed: %v", err)
+			}
+
+			captureStdout(t, func() error { return RunShow(s, args(id)) })
+
+			var viewed, updated string
+			if err := s.DB().QueryRow(`SELECT last_viewed_at, CAST(updated_at AS TEXT) FROM parks WHERE id = ?`, id).Scan(&viewed, &updated); err != nil {
+				t.Fatalf("select: %v", err)
+			}
+			if viewed == "" {
+				t.Error("last_viewed_at not set")
+			}
+			if updated != "2020-01-02 03:04:05" {
+				t.Errorf("updated_at changed to %q", updated)
+			}
+		})
 	}
 }

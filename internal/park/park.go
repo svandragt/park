@@ -136,6 +136,24 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 	return scanRows(rows)
 }
 
+// likeEscaper makes text match literally inside a LIKE pattern with ESCAPE '\'.
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+// Mentions returns the active items on remote whose name, description, body,
+// why or how_to_apply contain text. LIKE ignores ASCII case.
+func (s *Store) Mentions(remote, text string) ([]Item, error) {
+	pat := "%" + likeEscaper.Replace(text) + "%"
+	rows, err := s.db.Query(`SELECT id, name, description, type, body, why, how_to_apply, remote, branch, tags, status, device, uid, parent, created_at, updated_at FROM parks
+WHERE status = 'active' AND remote = ?
+  AND (name LIKE ? ESCAPE '\' OR description LIKE ? ESCAPE '\' OR body LIKE ? ESCAPE '\' OR why LIKE ? ESCAPE '\' OR how_to_apply LIKE ? ESCAPE '\')
+ORDER BY updated_at DESC, id DESC`, remote, pat, pat, pat, pat, pat)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanRows(rows)
+}
+
 func (s *Store) Search(keyword string, f ListFilter) ([]Item, error) {
 	query := `
 SELECT p.id, p.name, p.description, p.type, p.body, p.why, p.how_to_apply,
@@ -450,6 +468,13 @@ func (s *Store) Delete(id int64) error {
 		s.emit(synclog.Event{UID: uid, Op: "delete", TS: time.Now().UTC().Format(time.RFC3339Nano)})
 	}
 	return nil
+}
+
+// MarkViewed records a read of the item. It leaves updated_at alone and emits
+// no sync event: a view is local, and a read must not reorder lists.
+func (s *Store) MarkViewed(id int64) error {
+	_, err := s.db.Exec(`UPDATE parks SET last_viewed_at = CURRENT_TIMESTAMP WHERE id = ?`, id)
+	return err
 }
 
 func (s *Store) SetStatus(id int64, status string) error {
