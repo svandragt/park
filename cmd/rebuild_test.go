@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/svandragt/park/internal/park"
@@ -52,6 +53,32 @@ func TestRunRebuild_DiscardsLocalRowsAndFoldsFromLog(t *testing.T) {
 	}
 	if items[0].UID != uid {
 		t.Errorf("uid = %q, want %q", items[0].UID, uid)
+	}
+}
+
+// usage is local-only and keyed on uid, so a rebuild must keep it.
+func TestRunRebuild_KeepsUsageRows(t *testing.T) {
+	s := newSeedTestStore(t)
+	dir := t.TempDir()
+	uid := synclog.NewULID()
+	if err := synclog.Append(dir, "host1", synclog.Event{
+		UID: uid, Op: "add", TS: "2026-01-01T00:00:00Z", Fields: map[string]any{"name": "from log"},
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	if err := RunRebuild(s, dir, []string{"--yes"}); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	if _, err := s.DB().Exec(`INSERT INTO usage (item_uid, event, source) VALUES (?, 'viewed', 'cli')`, uid); err != nil {
+		t.Fatalf("record: %v", err)
+	}
+
+	if err := RunRebuild(s, dir, []string{"--yes"}); err != nil {
+		t.Fatalf("rebuild again: %v", err)
+	}
+
+	if got, want := usageRows(t, s), []string{uid + " viewed cli"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("usage rows = %q, want %q", got, want)
 	}
 }
 

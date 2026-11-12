@@ -8,7 +8,7 @@ import (
 )
 
 func Open(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", path+"?_journal_mode=WAL&_foreign_keys=on")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)&_pragma=busy_timeout(2000)")
 	if err != nil {
 		return nil, err
 	}
@@ -38,6 +38,13 @@ CREATE TABLE IF NOT EXISTS parks (
 	updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS usage (
+	ts       DATETIME DEFAULT CURRENT_TIMESTAMP,
+	item_uid TEXT,
+	event    TEXT,
+	source   TEXT
+);
+CREATE INDEX IF NOT EXISTS usage_event_ts ON usage(event, ts);
 `); err != nil {
 		return err
 	}
@@ -137,11 +144,11 @@ END;
 		}
 	}
 
-	// Local-only read tracking: MarkViewed sets it, and it never reaches the sync log.
+	// usage replaced the per-item last_viewed_at column.
 	var hasViewed int
 	db.QueryRow(`SELECT count(*) FROM pragma_table_info('parks') WHERE name='last_viewed_at'`).Scan(&hasViewed)
-	if hasViewed == 0 {
-		if _, err := db.Exec(`ALTER TABLE parks ADD COLUMN last_viewed_at TEXT NOT NULL DEFAULT ''`); err != nil {
+	if hasViewed > 0 {
+		if _, err := db.Exec(`ALTER TABLE parks DROP COLUMN last_viewed_at`); err != nil {
 			return err
 		}
 	}

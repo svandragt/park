@@ -586,32 +586,3 @@ func TestMentions_MatchesActiveItemsOnRemoteByLiteralText(t *testing.T) {
 		t.Errorf("%% must match literally, got %+v", got)
 	}
 }
-
-func TestMarkViewed_SetsLastViewedAtOnly(t *testing.T) {
-	s := newTestStore(t)
-	sink := &fakeSink{}
-	s.SetSink(sink)
-	id, _ := s.Add(park.Item{Name: "viewed"})
-	sink.events = nil
-	if _, err := s.DB().Exec(`UPDATE parks SET updated_at = '2020-01-02 03:04:05' WHERE id = ?`, id); err != nil {
-		t.Fatalf("seed updated_at: %v", err)
-	}
-
-	if err := s.MarkViewed(id); err != nil {
-		t.Fatalf("MarkViewed: %v", err)
-	}
-
-	var viewed, updated string
-	if err := s.DB().QueryRow(`SELECT last_viewed_at, CAST(updated_at AS TEXT) FROM parks WHERE id = ?`, id).Scan(&viewed, &updated); err != nil {
-		t.Fatalf("select: %v", err)
-	}
-	if viewed == "" {
-		t.Error("last_viewed_at not set")
-	}
-	if updated != "2020-01-02 03:04:05" {
-		t.Errorf("updated_at changed to %q", updated)
-	}
-	if len(sink.events) != 0 {
-		t.Errorf("MarkViewed emitted %d sync events, want 0", len(sink.events))
-	}
-}

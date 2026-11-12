@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -28,6 +30,41 @@ func newTestRepo(t *testing.T, remote string) string {
 		}
 	}
 	return dir
+}
+
+// usageRows returns the usage table as sorted "uid event source" strings.
+func usageRows(t *testing.T, store *park.Store) []string {
+	t.Helper()
+	rows, err := store.DB().Query(`SELECT item_uid, event, source FROM usage`)
+	if err != nil {
+		t.Fatalf("select usage: %v", err)
+	}
+	defer rows.Close()
+	var got []string
+	for rows.Next() {
+		var uid, event, source string
+		if err := rows.Scan(&uid, &event, &source); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		got = append(got, uid+" "+event+" "+source)
+	}
+	sort.Strings(got)
+	return got
+}
+
+// usageFor builds the usageRows entries for the given items.
+func usageFor(t *testing.T, store *park.Store, event, source string, ids ...int64) []string {
+	t.Helper()
+	var want []string
+	for _, id := range ids {
+		it, err := store.Get(id)
+		if err != nil {
+			t.Fatalf("get %d: %v", id, err)
+		}
+		want = append(want, it.UID+" "+event+" "+source)
+	}
+	sort.Strings(want)
+	return want
 }
 
 func TestHookRun_EmitsSessionContext(t *testing.T) {
@@ -167,6 +204,57 @@ func hookContext(t *testing.T, store *park.Store, dir string, compact bool) stri
 		t.Fatalf("output is not valid JSON: %v\n%s", err, out.String())
 	}
 	return got.HookSpecificOutput.AdditionalContext
+}
+
+// The agent sees only the first 2048 bytes of additionalContext, so only the
+// items whose index line ends inside them count as surfaced.
+func TestHookRun_RecordsOnlyItemsWithinFirst2KB(t *testing.T) {
+	for _, compact := range []bool{true, false} {
+		t.Run(fmt.Sprintf("compact=%v", compact), func(t *testing.T) {
+			store := newTestStore(t)
+			dir := newTestRepo(t, testRemote)
+			for i := range 40 {
+				store.Add(park.Item{Name: fmt.Sprintf("Item %02d %s", i, strings.Repeat("x", 50)), Remote: testRemote})
+			}
+
+			ctx := hookContext(t, store, dir, compact)
+
+			_, lines, _ := strings.Cut(ctx, "\n\n")
+			offset := len(ctx) - len(lines)
+			var visible []int64
+			for _, line := range strings.Split(strings.TrimSuffix(lines, "\n"), "\n") {
+				offset += len(line)
+				if offset > 2048 {
+					break
+				}
+				offset++ // the newline
+				id, _ := strconv.ParseInt(strings.TrimPrefix(strings.Fields(line)[0], "#"), 10, 64)
+				visible = append(visible, id)
+			}
+			if len(ctx) <= 2048 || len(visible) == 0 || len(visible) == 40 {
+				t.Fatalf("test setup: context is %d bytes with %d visible lines; want a partial fit", len(ctx), len(visible))
+			}
+
+			want := usageFor(t, store, "surfaced", "session-hook", visible...)
+			if got := usageRows(t, store); !reflect.DeepEqual(got, want) {
+				t.Errorf("usage rows = %d, want the %d items within 2048 bytes", len(got), len(want))
+			}
+		})
+	}
+}
+
+func TestHookRun_RecordsEveryItemWhenAllFit(t *testing.T) {
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	a, _ := store.Add(park.Item{Name: "one", Remote: testRemote})
+	b, _ := store.Add(park.Item{Name: "two", Remote: testRemote})
+	store.Add(park.Item{Name: "elsewhere", Remote: "https://github.com/other/repo"})
+
+	hookContext(t, store, dir, true)
+
+	if got, want := usageRows(t, store), usageFor(t, store, "surfaced", "session-hook", a, b); !reflect.DeepEqual(got, want) {
+		t.Errorf("usage rows = %q, want %q", got, want)
+	}
 }
 
 func TestHookRun_SilentWhenNothingParked(t *testing.T) {
@@ -380,6 +468,23 @@ func TestHookFile_ShowsEachItemOncePerSession(t *testing.T) {
 	}
 }
 
+func TestHookFile_RecordsWhatItPrinted(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	a, _ := store.Add(park.Item{Name: "One", Body: "cmd/hook.go", Remote: testRemote})
+	b, _ := store.Add(park.Item{Name: "Two", Body: "cmd/hook.go", Remote: testRemote})
+	store.Add(park.Item{Name: "Unrelated", Body: "cmd/list.go", Remote: testRemote})
+	file := filepath.Join(dir, "cmd", "hook.go")
+
+	hookFileOut(t, store, dir, "s1", file)
+	hookFileOut(t, store, dir, "s1", file) // dedup: prints nothing, so records nothing
+
+	if got, want := usageRows(t, store), usageFor(t, store, "surfaced", "file-hook", a, b); !reflect.DeepEqual(got, want) {
+		t.Errorf("usage rows = %q, want %q", got, want)
+	}
+}
+
 func TestHookFile_SanitisesSessionID(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("TMPDIR", tmp)
@@ -454,6 +559,9 @@ func TestHookFile_SilentOnBadInput(t *testing.T) {
 		if err := hookFile(store, strings.NewReader(payload), &out); err != nil || out.Len() != 0 {
 			t.Errorf("%s: err = %v, output = %q; want silence", name, err, out.String())
 		}
+	}
+	if got := usageRows(t, store); len(got) != 0 {
+		t.Errorf("bad input recorded usage: %q", got)
 	}
 }
 

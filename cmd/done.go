@@ -27,6 +27,9 @@ func setStatus(store *park.Store, args []string, status string) error {
 	}
 	fmt.Printf("#%d marked as %s\n", id, status)
 	if status == "resolved" {
+		if it, err := store.Get(id); err == nil {
+			_ = store.RecordUsage([]string{it.UID}, "resolved", "cli")
+		}
 		return warnOpenChildren(store, id)
 	}
 	return nil

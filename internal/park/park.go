@@ -470,13 +470,6 @@ func (s *Store) Delete(id int64) error {
 	return nil
 }
 
-// MarkViewed records a read of the item. It leaves updated_at alone and emits
-// no sync event: a view is local, and a read must not reorder lists.
-func (s *Store) MarkViewed(id int64) error {
-	_, err := s.db.Exec(`UPDATE parks SET last_viewed_at = CURRENT_TIMESTAMP WHERE id = ?`, id)
-	return err
-}
-
 func (s *Store) SetStatus(id int64, status string) error {
 	res, err := s.db.Exec(`UPDATE parks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, status, id)
 	if err != nil {

@@ -1,6 +1,6 @@
 ---
 name: park
-version: 1.5.0
+version: 1.6.0
 description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles switching to work on a ticket (BH-740, ABC-123): lists every parked item for it. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
 author: svandragt
 ---
@@ -17,7 +17,7 @@ Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.d
 4. When the user marks something done/resolved, run `park done <id>`.
 5. When the user wants to work on, resume, or unpark an item, run `park show <id>` and present the full context (body, why, how) so they can pick up immediately.
 6. When the user wants to reopen a resolved/archived item, run `park reopen <id>`.
-7. Parked items surface at session start only if the `SessionStart` hook is installed. If the user is surprised that an item did not surface, or asks how to be reminded automatically, run `park hook --install` and tell them it takes effect next session. On Claude Code the same command also installs a `PostToolUse` hook that surfaces items naming a file when you read or edit it, once per session. Surface those items if they are relevant, and do not act on them unprompted.
+7. Parked items surface at session start only if the `SessionStart` hook is installed. If the user is surprised that an item did not surface, or asks how to be reminded automatically, run `park hook --install` and tell them it takes effect next session. On Claude Code the same command also installs a `PostToolUse` hook that surfaces items naming a file when you read or edit it, once per session. Surface those items if they are relevant, and do not act on them unprompted. Park records locally when an item is surfaced (session hook, file hook, `park search`, `park list --tag`), viewed (`park show`) and resolved (`park done`). When the user asks whether parked items get used, run `park stats`.
 8. When the session switches to work on a ticket, list every parked item for it before starting: run `park list --status active --tag <KEY>`, then `park search "<KEY>"` for items that name the key only in their text. Read each hit with `park show <id>` and present them all. The session-start hook preview shows only the newest few items, so older items for the ticket are missing from it.
 9. Never mention park IDs in anything that leaves this machine — PR descriptions, commit messages, GitHub issues, comments. The park DB is local to the user only, so `#3` means nothing to anyone else. Say "is parked" or "tracked locally" instead. Park IDs are fine in chat replies to the user.
 
@@ -93,6 +93,9 @@ park delete <id>
 
 # Bulk-delete resolved/archived items older than N days (default 30)
 park prune --days 30
+
+# Report how parked items were surfaced, viewed and resolved (default: last 30 days)
+park stats --days 30
 
 # Change the type of every item of one type
 park retype <old> <new>

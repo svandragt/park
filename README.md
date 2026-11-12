@@ -62,6 +62,7 @@ park archive <id>                  # archive
 park reopen <id>                   # move back to active
 park delete <id>                   # hard-delete an item
 park prune --days 30               # hard-delete resolved/archived items older than N days
+park stats                         # how parked items were surfaced, viewed and resolved (--days N, default 30)
 park migrate <dest-dir>            # copy DB to new location, print PARK_DB export line
 park rename-remote <old> <new>     # update remote URL across all items
 park retype <old> <new>            # change the type of every item of one type (for example project task)
@@ -183,8 +184,22 @@ The match is the file's path relative to the repository root, or its file name w
 names the path and fewer than six items name the file name. Each item shows once per
 session. Codex has no matching event, so its install adds only the `SessionStart` hook.
 
-`park show` records when you last viewed an item. The record stays on the machine and does
-not sync.
+### See whether parked items get used
+
+Park keeps a local record of when an item is surfaced (by the session hook, the file hook,
+`park search` or `park list --tag`), viewed (`park show`) and resolved (`park done`).
+The session hook counts only the items that fit in the first 2 KB of its output, because
+the agent does not see the rest. The record stays on the machine and does not sync.
+
+```bash
+park stats              # the last 30 days
+park stats --days 7
+```
+
+The report counts events by kind and source, and gives the share of surfaced items that
+were viewed or resolved afterwards. A table shows how items came back: each view or
+resolve is credited to the way the item was most recently surfaced in the 2 hours before,
+or to `direct` when it was not surfaced.
 
 The installer merges into any existing `SessionStart` and `PostToolUse` hooks rather than
 replacing them.

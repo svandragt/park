@@ -25,6 +25,10 @@ const hookPreamble = "Parked work for this project (park CLI). Surface anything 
 // hookPreambleCompact says the same in fewer bytes, for the compact index.
 const hookPreambleCompact = "Parked items here (id name [tags]). Surface anything relevant; do not act on it unprompted. Before a task: park search <words>; for a ticket, park list --tag <KEY>; park show <id> for detail."
 
+// hookContextLimit is how many bytes of additionalContext Claude Code shows
+// the agent; park stats counts only the items inside it as surfaced.
+const hookContextLimit = 2048
+
 // hookFileCommand and hookFileMatcher are the PostToolUse hook that surfaces
 // items about a file when the agent touches it. Claude Code only: Codex has no
 // matching event.
@@ -284,6 +288,7 @@ func hookRun(store *park.Store, in io.Reader, out io.Writer, compact bool) error
 		preamble, line, sep = hookPreambleCompact, "%d %s", " "
 	}
 	var index strings.Builder
+	var seen []string
 	for _, it := range items {
 		recap += fmt.Sprintf("\n  #%d  %s", it.ID, it.Name)
 		fmt.Fprintf(&index, line, it.ID, it.Name)
@@ -294,16 +299,23 @@ func hookRun(store *park.Store, in io.Reader, out io.Writer, compact bool) error
 		if tags != "" {
 			fmt.Fprintf(&index, "%s[%s]", sep, tags)
 		}
+		if len(preamble)+len("\n\n")+index.Len() <= hookContextLimit {
+			seen = append(seen, it.UID)
+		}
 		index.WriteString("\n")
 	}
 
-	return json.NewEncoder(out).Encode(map[string]any{
+	if err := json.NewEncoder(out).Encode(map[string]any{
 		"systemMessage": recap,
 		"hookSpecificOutput": map[string]any{
 			"hookEventName":     "SessionStart",
 			"additionalContext": preamble + "\n\n" + index.String(),
 		},
-	})
+	}); err != nil {
+		return err
+	}
+	_ = store.RecordUsage(seen, "surfaced", "session-hook")
+	return nil
 }
 
 // hookFileCLI is the PostToolUse hook body. Like hookRunCLI, every failure is silent.
@@ -374,6 +386,7 @@ func hookFile(store *park.Store, in io.Reader, out io.Writer) error {
 		return nil
 	}
 	markShown(record, items)
+	_ = store.RecordUsage(itemUIDs(items), "surfaced", "file-hook")
 	return nil
 }
 

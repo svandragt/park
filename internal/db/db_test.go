@@ -283,9 +283,9 @@ INSERT INTO parks (name) VALUES ('old');
 	}
 }
 
-// A database created before view tracking gets last_viewed_at, empty for
-// existing rows.
-func TestMigrate_AddsLastViewedAtColumn(t *testing.T) {
+// A database from before usage tracking still has last_viewed_at; opening it
+// drops the column, keeps the rows and creates the usage table.
+func TestMigrate_DropsLastViewedAtAndAddsUsage(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "old_viewed.db")
 	conn, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -293,22 +293,23 @@ func TestMigrate_AddsLastViewedAtColumn(t *testing.T) {
 	}
 	if _, err := conn.Exec(`
 CREATE TABLE parks (
-	id           INTEGER PRIMARY KEY,
-	name         TEXT NOT NULL,
-	description  TEXT NOT NULL DEFAULT '',
-	type         TEXT NOT NULL DEFAULT 'task',
-	body         TEXT NOT NULL DEFAULT '',
-	why          TEXT NOT NULL DEFAULT '',
-	how_to_apply TEXT NOT NULL DEFAULT '',
-	remote       TEXT NOT NULL DEFAULT '',
-	branch       TEXT NOT NULL DEFAULT '',
-	tags         TEXT NOT NULL DEFAULT '',
-	status       TEXT NOT NULL DEFAULT 'active',
-	device       TEXT NOT NULL DEFAULT '',
-	created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+	id             INTEGER PRIMARY KEY,
+	name           TEXT NOT NULL,
+	description    TEXT NOT NULL DEFAULT '',
+	type           TEXT NOT NULL DEFAULT 'task',
+	body           TEXT NOT NULL DEFAULT '',
+	why            TEXT NOT NULL DEFAULT '',
+	how_to_apply   TEXT NOT NULL DEFAULT '',
+	remote         TEXT NOT NULL DEFAULT '',
+	branch         TEXT NOT NULL DEFAULT '',
+	tags           TEXT NOT NULL DEFAULT '',
+	status         TEXT NOT NULL DEFAULT 'active',
+	device         TEXT NOT NULL DEFAULT '',
+	created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+	last_viewed_at TEXT NOT NULL DEFAULT ''
 );
-INSERT INTO parks (name) VALUES ('old');
+INSERT INTO parks (name, last_viewed_at) VALUES ('old', '2026-01-01 00:00:00');
 `); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -319,13 +320,45 @@ INSERT INTO parks (name) VALUES ('old');
 		if err != nil {
 			t.Fatalf("migrate: %v", err)
 		}
-		var viewed string
-		if err := conn.QueryRow(`SELECT last_viewed_at FROM parks WHERE name = 'old'`).Scan(&viewed); err != nil {
-			t.Fatalf("select last_viewed_at: %v", err)
+		var viewedCols int
+		conn.QueryRow(`SELECT count(*) FROM pragma_table_info('parks') WHERE name = 'last_viewed_at'`).Scan(&viewedCols)
+		if viewedCols != 0 {
+			t.Error("last_viewed_at column still exists")
 		}
-		if viewed != "" {
-			t.Errorf("last_viewed_at = %q, want empty", viewed)
+		var name string
+		if err := conn.QueryRow(`SELECT name FROM parks`).Scan(&name); err != nil || name != "old" {
+			t.Errorf("row after migrate = %q, %v; want old", name, err)
 		}
+		if _, err := conn.Exec(`INSERT INTO usage (item_uid, event, source) VALUES ('u', 'viewed', 'cli')`); err != nil {
+			t.Fatalf("insert into usage: %v", err)
+		}
+		var ts string
+		if err := conn.QueryRow(`SELECT CAST(ts AS TEXT) FROM usage`).Scan(&ts); err != nil || ts == "" {
+			t.Errorf("usage ts = %q, %v; want a default timestamp", ts, err)
+		}
+		var indexes int
+		conn.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'index' AND tbl_name = 'usage'`).Scan(&indexes)
+		if indexes == 0 {
+			t.Error("usage has no index")
+		}
+		conn.Exec(`DELETE FROM usage`)
 		conn.Close()
+	}
+}
+
+// Hooks fire in parallel (several Reads in one turn), so a writer must wait for
+// the lock instead of failing at once with "database is locked".
+func TestOpen_SetsBusyTimeout(t *testing.T) {
+	conn, err := Open(filepath.Join(t.TempDir(), "park.db"))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer conn.Close()
+	var ms int
+	if err := conn.QueryRow(`PRAGMA busy_timeout`).Scan(&ms); err != nil {
+		t.Fatalf("pragma: %v", err)
+	}
+	if ms < 1000 {
+		t.Fatalf("busy_timeout = %d ms, want at least 1000", ms)
 	}
 }

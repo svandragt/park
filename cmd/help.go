@@ -18,6 +18,7 @@ Commands:
   reopen <id>      Move item back to active
   delete <id>      Hard-delete an item
   prune            Hard-delete resolved/archived items older than --days (default 30)
+  stats            Show how parked items were surfaced, viewed and resolved (--days N, default 30)
   migrate <dir>    Copy the DB to a new directory
   rename-remote    Bulk-update remote across all items (old → new)
   retype           Bulk-change item type (old → new)

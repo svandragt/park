@@ -70,6 +70,7 @@ func RunSearch(store *park.Store, args []string) error {
 		fmt.Println("no results")
 		return nil
 	}
+	_ = store.RecordUsage(itemUIDs(items), "surfaced", "search")
 	for _, it := range items {
 		fmt.Printf("#%d  [%s]  %s\n", it.ID, it.Status, it.Name)
 		if it.Description != "" {

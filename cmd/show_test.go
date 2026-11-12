@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os/exec"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -47,9 +48,9 @@ func TestRunShow_CurrentNoMatch(t *testing.T) {
 	}
 }
 
-// show records a read in last_viewed_at without touching updated_at, which
+// show records a viewed/cli usage row without touching updated_at, which
 // would reorder the lists.
-func TestRunShow_MarksViewed(t *testing.T) {
+func TestRunShow_RecordsViewed(t *testing.T) {
 	chdirGitRepo(t)
 	for name, args := range map[string]func(id int64) []string{
 		"id":      func(id int64) []string { return []string{fmt.Sprint(id)} },
@@ -64,12 +65,12 @@ func TestRunShow_MarksViewed(t *testing.T) {
 
 			captureStdout(t, func() error { return RunShow(s, args(id)) })
 
-			var viewed, updated string
-			if err := s.DB().QueryRow(`SELECT last_viewed_at, CAST(updated_at AS TEXT) FROM parks WHERE id = ?`, id).Scan(&viewed, &updated); err != nil {
-				t.Fatalf("select: %v", err)
+			if got, want := usageRows(t, s), usageFor(t, s, "viewed", "cli", id); !reflect.DeepEqual(got, want) {
+				t.Errorf("usage rows = %q, want %q", got, want)
 			}
-			if viewed == "" {
-				t.Error("last_viewed_at not set")
+			var updated string
+			if err := s.DB().QueryRow(`SELECT CAST(updated_at AS TEXT) FROM parks WHERE id = ?`, id).Scan(&updated); err != nil {
+				t.Fatalf("select: %v", err)
 			}
 			if updated != "2020-01-02 03:04:05" {
 				t.Errorf("updated_at changed to %q", updated)

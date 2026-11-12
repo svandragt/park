@@ -106,6 +106,8 @@ func run() error {
 		return cmd.RunDelete(store, args)
 	case "prune":
 		return cmd.RunPrune(store, args)
+	case "stats":
+		return cmd.RunStats(store, args)
 	case "migrate":
 		return cmd.RunMigrate(dbPath, args)
 	case "rename-remote":

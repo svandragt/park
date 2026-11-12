@@ -57,8 +57,20 @@ func RunList(store *park.Store, args []string) error {
 		fmt.Println("no parked items")
 		return nil
 	}
+	// Only a tag lookup counts as surfacing; a plain list is a bulk listing.
+	if *tag != "" {
+		_ = store.RecordUsage(itemUIDs(items), "surfaced", "list-tag")
+	}
 	fmt.Print(formatItems(items))
 	return nil
+}
+
+func itemUIDs(items []park.Item) []string {
+	uids := make([]string, len(items))
+	for i, it := range items {
+		uids[i] = it.UID
+	}
+	return uids
 }
 
 // formatItems renders the one-per-item summary used by list and the session hook.
