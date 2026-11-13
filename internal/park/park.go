@@ -115,8 +115,8 @@ func (s *Store) List(f ListFilter) ([]Item, error) {
 		args = append(args, f.Branch)
 	}
 	if f.Tag != "" {
-		query += ` AND (',' || tags || ',' LIKE ?)`
-		args = append(args, "%,"+f.Tag+",%")
+		query += ` AND (',' || tags || ',' LIKE ? ESCAPE '\')`
+		args = append(args, "%,"+likeEscaper.Replace(f.Tag)+",%")
 	}
 	if f.Type != "" {
 		query += ` AND type = ?`
@@ -175,8 +175,8 @@ WHERE parks_fts MATCH ?`
 		args = append(args, f.Branch)
 	}
 	if f.Tag != "" {
-		query += ` AND (',' || p.tags || ',' LIKE ?)`
-		args = append(args, "%,"+f.Tag+",%")
+		query += ` AND (',' || p.tags || ',' LIKE ? ESCAPE '\')`
+		args = append(args, "%,"+likeEscaper.Replace(f.Tag)+",%")
 	}
 	if f.Type != "" {
 		query += ` AND p.type = ?`

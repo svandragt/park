@@ -586,3 +586,31 @@ func TestMentions_MatchesActiveItemsOnRemoteByLiteralText(t *testing.T) {
 		t.Errorf("%% must match literally, got %+v", got)
 	}
 }
+
+// _ and % in a tag are literal characters, not LIKE wildcards.
+func TestTagFilter_MatchesWildcardsLiterally(t *testing.T) {
+	s := newTestStore(t)
+	s.Add(park.Item{Name: "underscore note", Tags: "a_b"})
+	s.Add(park.Item{Name: "lookalike note", Tags: "axb"})
+	s.Add(park.Item{Name: "percent note", Tags: "100%done"})
+
+	for _, tc := range []struct{ tag, want string }{{"a_b", "underscore note"}, {"100%", ""}} {
+		listed, err := s.List(park.ListFilter{Tag: tc.tag})
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		searched, err := s.Search("note", park.ListFilter{Tag: tc.tag})
+		if err != nil {
+			t.Fatalf("search: %v", err)
+		}
+		for name, got := range map[string][]park.Item{"List": listed, "Search": searched} {
+			var names []string
+			for _, it := range got {
+				names = append(names, it.Name)
+			}
+			if want := tc.want; (want == "" && len(names) != 0) || (want != "" && (len(names) != 1 || names[0] != want)) {
+				t.Errorf("%s --tag %s = %v, want [%s]", name, tc.tag, names, want)
+			}
+		}
+	}
+}
