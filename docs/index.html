@@ -267,7 +267,7 @@ Children: 0/1 done
 <span class="p">$ </span>park hook --install   <span class="c"># adds it to Claude Code and Codex settings</span></pre></div>
   <p>The installer writes to <code>~/.claude/settings.json</code> and <code>~/.codex/hooks.json</code>, for whichever exists, and keeps the hooks already there. Hooks load when a session starts, so open a new session afterwards. In Claude Code, <code>/hooks</code> reloads them.</p>
   <h3>What the agent sees</h3>
-  <p>At session start, the agent gets one line per active item for the current repository:</p>
+  <p>At session start, the agent gets one line per active item for the current repository, most recently updated first. Claude Code passes on only the first 2 KB, so with many items the older ones may not fit:</p>
   <div class="term out"><div class="term-head">Session context</div><pre>Parked items here (id name [tags]). Surface anything relevant; do not act on it unprompted. Before a task: park search &lt;words&gt;; for a ticket, park list --tag &lt;KEY&gt;; park show &lt;id&gt; for detail.
 
 3 Write migration notes
@@ -327,7 +327,7 @@ How items came back
   <p>Each view or resolve counts towards the way the item last reached you in the 2 hours before: the session hook, the file hook, a search or a tag list. <code>direct</code> means you went to the item without it being shown first. The record stays on this machine and does not sync.</p>
   <h3>You are set up</h3>
   <p>Next time you are interrupted, run <code>park add</code> before you switch. When you come back, run <code>park list --current</code>.</p>
-  <p>Every command and flag is listed in the <a href="https://github.com/svandragt/park#readme">README</a>, and <code>park &lt;command&gt; -h</code> shows the flags for one command.</p>
+  <p>Every command and flag is listed in the <a href="https://github.com/svandragt/park#readme">README</a>, and for commands that take flags, <code>park &lt;command&gt; -h</code> lists them.</p>
 </template>
 
 <script>
