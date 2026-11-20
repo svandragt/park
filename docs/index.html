@@ -141,7 +141,7 @@ button.btn[disabled] { opacity: .4; cursor: default; }
       </div>
     </div>
     <div class="progress" aria-live="polite">
-      <div class="progress-label"><span>Progress</span><span id="progress-text">0 of 8</span></div>
+      <div class="progress-label"><span>Progress</span><span id="progress-text">0 of 7</span></div>
       <div class="bar"><span id="progress-bar"></span></div>
     </div>
   </header>
@@ -161,7 +161,7 @@ button.btn[disabled] { opacity: .4; cursor: default; }
 <span class="p">$ </span>park version</pre></div>
   <p>Check that <code>command -v park</code> points into <code>$(go env GOPATH)/bin</code> or your <code>GOBIN</code>. If another <code>park</code> comes earlier on your <code>PATH</code>, that one runs instead.</p>
   <h3>Where your items live</h3>
-  <p>The database is at <code>~/.local/share/park/park.db</code>. Set <code>PARK_DB</code> to use another file.</p>
+  <p>The database is at <code>~/.local/share/park/park.db</code>, or under <code>$XDG_DATA_HOME</code> when that is set. Set <code>PARK_DB</code> to use another file.</p>
   <div class="note"><strong>Trying park in a throwaway database?</strong><p>Unset <code>PARK_SYNC_DIR</code> as well as changing <code>PARK_DB</code>. While <code>PARK_SYNC_DIR</code> is set, every database you point park at reads and writes the same sync log, so test items reach your real items.</p></div>
   <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>env -u PARK_SYNC_DIR PARK_DB=/tmp/park-test.db park list</pre></div>
 </template>
@@ -222,7 +222,8 @@ Device: my-laptop  Parked: 2026-11-20 11:01</pre></div>
 <span class="p">$ </span>park reopen 1         <span class="c"># back to active</span></pre></div>
   <div class="term out"><div class="term-head">Output of park done 1</div><pre>#1 marked as resolved</pre></div>
   <h3>Removing items for good</h3>
-  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park delete 1         <span class="c"># removes one item</span>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park add --name "Try out park delete"
+<span class="p">$ </span>park delete -         <span class="c"># removes the item you added last</span>
 <span class="p">$ </span>park prune --days 30  <span class="c"># removes resolved and archived items older than 30 days</span></pre></div>
   <p>Both commands are permanent. Use <code>done</code> or <code>archive</code> when you are unsure.</p>
 </template>
@@ -243,6 +244,7 @@ Device: my-laptop  Parked: 2026-11-20 11:01</pre></div>
 <span class="p">$ </span>park add --name "Write migration notes" --type docs --parent -
 <span class="p">$ </span>park show 2</pre></div>
   <div class="term out"><div class="term-head">Output of park show 2</div><pre># Q3 release  [#2 · active]
+
 
 Type: project
 Repo: https://github.com/me/my-app  Branch: main
@@ -266,10 +268,11 @@ Children: 0/1 done
   <p>The installer writes to <code>~/.claude/settings.json</code> and <code>~/.codex/hooks.json</code>, for whichever exists, and keeps the hooks already there. Hooks load when a session starts, so open a new session afterwards. In Claude Code, <code>/hooks</code> reloads them.</p>
   <h3>What the agent sees</h3>
   <p>At session start, the agent gets one line per active item for the current repository:</p>
-  <div class="term out"><div class="term-head">Session context</div><pre>Parked items here (id name [tags]).
+  <div class="term out"><div class="term-head">Session context</div><pre>Parked items here (id name [tags]). Surface anything relevant; do not act on it unprompted. Before a task: park search &lt;words&gt;; for a ticket, park list --tag &lt;KEY&gt;; park show &lt;id&gt; for detail.
 
-1 Fix login redirect loop [auth]
-2 Q3 release</pre></div>
+3 Write migration notes
+2 Q3 release
+1 Fix login redirect loop [auth,ABC-123]</pre></div>
   <p>In Claude Code, a second hook runs when the agent reads or edits a file. If an active item names that file, the agent sees up to five matching items and can run <code>park show</code> for detail. Codex gets only the session-start hook.</p>
   <h3>Let the agent park for you</h3>
   <p>The repository includes a Claude Code skill. With it installed, you can say "park this", "show parked" or "work on #2".</p>
@@ -283,8 +286,7 @@ Children: 0/1 done
   <p class="lead">Skip this step if you use park on one machine. With sync, each machine writes its own log file to a shared folder and reads everyone else's.</p>
   <h3>On every machine</h3>
   <p>Point <code>PARK_SYNC_DIR</code> at a folder your file syncer keeps in step. Leave <code>PARK_DB</code> on its local default.</p>
-  <div class="term"><div class="term-head">Shell profile<button class="copy">Copy</button></div><pre>export PARK_DB="$HOME/.local/share/park/park.db"
-export PARK_SYNC_DIR="$HOME/sync/park"</pre></div>
+  <div class="term"><div class="term-head">Shell profile<button class="copy">Copy</button></div><pre>export PARK_SYNC_DIR="$HOME/sync/park"</pre></div>
   <h3>Once, on the machine that has your items</h3>
   <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park sync-seed --i-understand-this-runs-once</pre></div>
   <p>A second run, or a run on a second machine, duplicates every item. The command refuses if this machine's log already has entries.</p>
@@ -325,7 +327,7 @@ How items came back
   <p>Each view or resolve counts towards the way the item last reached you in the 2 hours before: the session hook, the file hook, a search or a tag list. <code>direct</code> means you went to the item without it being shown first. The record stays on this machine and does not sync.</p>
   <h3>You are set up</h3>
   <p>Next time you are interrupted, run <code>park add</code> before you switch. When you come back, run <code>park list --current</code>.</p>
-  <p>Every command and flag is listed in the <a href="https://github.com/svandragt/park#readme">README</a>, and <code>park <p>Next time you are interrupted, run <code>park add</code> before you switch. When you come back, run <code>park list --current</code>.</p>lt;command<p>Next time you are interrupted, run <code>park add</code> before you switch. When you come back, run <code>park list --current</code>.</p>gt; -h</code> shows the flags for one command.</p>
+  <p>Every command and flag is listed in the <a href="https://github.com/svandragt/park#readme">README</a>, and <code>park &lt;command&gt; -h</code> shows the flags for one command.</p>
 </template>
 
 <script>
@@ -362,9 +364,10 @@ How items came back
   }
 
   function updateProgress() {
-    var n = steps.filter(function (s) { return done[s.id]; }).length;
-    document.getElementById("progress-text").textContent = n + " of " + steps.length;
-    document.getElementById("progress-bar").style.width = (n / steps.length * 100) + "%";
+    var required = steps.filter(function (s) { return !s.optional; });
+    var n = required.filter(function (s) { return done[s.id]; }).length;
+    document.getElementById("progress-text").textContent = n + " of " + required.length;
+    document.getElementById("progress-bar").style.width = (n / required.length * 100) + "%";
     rail.querySelectorAll("a").forEach(function (a, i) { a.classList.toggle("done", !!done[steps[i].id]); });
   }
 
