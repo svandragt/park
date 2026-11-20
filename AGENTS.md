@@ -95,3 +95,7 @@ Rules:
 - Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - After modifying code files in this session, run `graphify-rs build --path . --output graphify-out --no-llm --update` to keep the graph current (fast, AST-only, ~2-5s)
+
+## Docs site
+
+`docs/index.html` is the getting-started guide, served by GitHub Pages from `/docs` on `main`. It copies commands and sample output from `README.md`. When a change alters a command, flag or output that the guide shows, update both.
