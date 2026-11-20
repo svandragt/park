@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Step-by-step guide to installing and using park, a CLI for saving and recalling work context.">
+<title>Getting started with park</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a numbered step rail on the left (chips on phones), one step at a time on the right, like bays in a car park. */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --fg: #18202b;
+  --muted: #5b6676;
+  --line: #d8dee7;
+  --accent: #1d5fd1;      /* parking-sign blue */
+  --accent-fg: #ffffff;
+  --mark: #e8b10e;        /* bay-line yellow */
+  --term-bg: #1b222c;
+  --term-fg: #dfe6ef;
+  --term-dim: #8a97a8;
+  --ok: #1f8a4c;
+  --warn-bg: #fff6dc;
+  --warn-line: #e8b10e;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #96a2b3; --line: #2a3442;
+    --accent: #5b95f5; --accent-fg: #0d1420; --mark: #f0c23a;
+    --term-bg: #0b0f14; --term-fg: #dfe6ef; --term-dim: #7f8c9d; --ok: #4cc283;
+    --warn-bg: #2a2412; --warn-line: #c99a14; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #96a2b3; --line: #2a3442;
+  --accent: #5b95f5; --accent-fg: #0d1420; --mark: #f0c23a;
+  --term-bg: #0b0f14; --term-fg: #dfe6ef; --term-dim: #7f8c9d; --ok: #4cc283;
+  --warn-bg: #2a2412; --warn-line: #c99a14; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--body); }
+a { color: var(--accent); }
+.wrap {
+  max-width: 1080px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; margin-bottom: 28px; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.sign {
+  width: 44px; height: 44px; border-radius: 8px; background: var(--accent); color: var(--accent-fg);
+  display: grid; place-items: center; font: 800 26px/1 var(--display); flex: none;
+}
+h1 { font: 800 clamp(26px, 4vw, 34px)/1.1 var(--display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 2px 0 0; }
+.progress { min-width: 200px; flex: 1 1 200px; max-width: 320px; }
+.progress-label { font: 600 12px/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.bar span { display: block; height: 100%; width: 0; background: var(--mark); transition: width .3s ease; }
+
+.layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 28px; align-items: start; }
+nav.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+nav.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.rail a {
+  display: grid; grid-template-columns: 28px 1fr 16px; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 8px; color: var(--fg); text-decoration: none; font-weight: 500;
+}
+nav.rail a:hover { background: var(--surface); }
+nav.rail a:focus-visible, button:focus-visible, .check input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+nav.rail .num {
+  width: 28px; height: 28px; border-radius: 6px; border: 1.5px solid var(--line);
+  display: grid; place-items: center; font: 700 13px/1 var(--display); font-variant-numeric: tabular-nums; color: var(--muted);
+}
+nav.rail a[aria-current="step"] { background: var(--surface); box-shadow: inset 3px 0 0 var(--mark); }
+nav.rail a[aria-current="step"] .num { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+nav.rail .tick { color: var(--ok); font-weight: 700; visibility: hidden; }
+nav.rail a.done .tick { visibility: visible; }
+nav.rail .opt { font-size: 11px; color: var(--muted); font-weight: 500; margin-left: 4px; }
+
+main.step { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: clamp(20px, 3.5vw, 36px); min-width: 0; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+main h2 { font: 700 clamp(22px, 3vw, 28px)/1.2 var(--display); margin: 0 0 10px; text-wrap: balance; }
+main h3 { font: 700 16px/1.3 var(--display); margin: 26px 0 8px; }
+main p, main li { max-width: 66ch; }
+main p { margin: 0 0 12px; }
+main ul { padding-left: 20px; margin: 0 0 12px; }
+.lead { font-size: 17px; color: var(--muted); }
+code { font: 0.9em var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+
+.term { background: var(--term-bg); color: var(--term-fg); border-radius: 10px; margin: 10px 0 16px; overflow: hidden; }
+.term-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px 6px 14px; font: 600 11px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--term-dim); border-bottom: 1px solid rgba(255,255,255,.07); }
+.term pre { margin: 0; padding: 12px 14px; overflow-x: auto; font: 13px/1.6 var(--mono); white-space: pre; }
+.term .p { color: var(--mark); user-select: none; }
+.term .c { color: var(--term-dim); }
+.term.out pre { color: var(--term-dim); }
+.copy { font: 600 11px/1 var(--body); color: var(--term-fg); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.copy:hover { background: rgba(255,255,255,.16); }
+
+.note { border-left: 4px solid var(--warn-line); background: var(--warn-bg); border-radius: 0 8px 8px 0; padding: 12px 14px; margin: 14px 0; }
+.note p:last-child { margin-bottom: 0; }
+.note strong { display: block; margin-bottom: 2px; }
+
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+.check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+.check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.check span.box { width: 22px; height: 22px; border-radius: 5px; border: 2px solid var(--line); display: grid; place-items: center; color: transparent; font-weight: 800; font-size: 14px; }
+.check input:checked + span.box { background: var(--ok); border-color: var(--ok); color: #fff; }
+.nav-btns { display: flex; gap: 8px; }
+button.btn { font: 600 14px/1 var(--body); border-radius: 8px; padding: 11px 16px; cursor: pointer; border: 1.5px solid var(--line); background: var(--surface); color: var(--fg); }
+button.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+button.btn[disabled] { opacity: .4; cursor: default; }
+
+@media (max-width: 760px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.rail { position: static; overflow-x: auto; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 0 max(16px, env(safe-area-inset-left, 0px)) 4px; }
+  nav.rail ol { display: flex; gap: 6px; width: max-content; }
+  nav.rail a { grid-template-columns: 28px auto; padding: 6px 10px 6px 6px; background: var(--surface); border: 1px solid var(--line); }
+  nav.rail a[aria-current="step"] { box-shadow: inset 0 -3px 0 var(--mark); }
+  nav.rail .tick, nav.rail .opt { display: none; }
+  nav.rail a.done .num { border-color: var(--ok); color: var(--ok); }
+  nav.rail a[aria-current="step"].done .num { color: var(--accent-fg); }
+}
+@media (prefers-reduced-motion: reduce) { .bar span { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="sign" aria-hidden="true">P</div>
+      <div>
+        <h1>Getting started with park</h1>
+        <p class="sub">Save where you were, so you or your agent can pick it up later. <a href="https://github.com/svandragt/park">Source on GitHub</a></p>
+      </div>
+    </div>
+    <div class="progress" aria-live="polite">
+      <div class="progress-label"><span>Progress</span><span id="progress-text">0 of 8</span></div>
+      <div class="bar"><span id="progress-bar"></span></div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="rail" aria-label="Steps"><ol id="rail"></ol></nav>
+    <main class="step" id="step" tabindex="-1"></main>
+  </div>
+</div>
+
+<template id="t-install">
+  <p class="eyebrow">Step 1 · About 2 minutes</p>
+  <h2>Install park</h2>
+  <p class="lead">park is one Go binary. It keeps your parked items in a local SQLite database.</p>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>go install github.com/svandragt/park@latest
+<span class="p">$ </span>command -v park
+<span class="p">$ </span>park version</pre></div>
+  <p>Check that <code>command -v park</code> points into <code>$(go env GOPATH)/bin</code> or your <code>GOBIN</code>. If another <code>park</code> comes earlier on your <code>PATH</code>, that one runs instead.</p>
+  <h3>Where your items live</h3>
+  <p>The database is at <code>~/.local/share/park/park.db</code>. Set <code>PARK_DB</code> to use another file.</p>
+  <div class="note"><strong>Trying park in a throwaway database?</strong><p>Unset <code>PARK_SYNC_DIR</code> as well as changing <code>PARK_DB</code>. While <code>PARK_SYNC_DIR</code> is set, every database you point park at reads and writes the same sync log, so test items reach your real items.</p></div>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>env -u PARK_SYNC_DIR PARK_DB=/tmp/park-test.db park list</pre></div>
+</template>
+
+<template id="t-park">
+  <p class="eyebrow">Step 2 · About 3 minutes</p>
+  <h2>Park your first item</h2>
+  <p class="lead">Park the thing you are in the middle of. Write it for the person who picks it up next, who may be you in a week or an agent with no memory of today.</p>
+  <p>Run this inside a git repository:</p>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park add --name "Fix login redirect loop" \
+    --desc "Users bounce between /login and /dashboard" \
+    --why "Blocks the release" \
+    --how "Start at auth/session.go:42" \
+    --tags auth</pre></div>
+  <div class="term out"><div class="term-head">Output</div><pre>parked #1: Fix login redirect loop</pre></div>
+  <h3>What each field is for</h3>
+  <ul>
+    <li><code>--name</code> is the one line you see in lists. It is the only required field.</li>
+    <li><code>--desc</code> says what is wrong or what the work is.</li>
+    <li><code>--why</code> says why it matters, so you can decide later whether it still does.</li>
+    <li><code>--how</code> names the exact next step: a file and line, a command, a person to ask.</li>
+    <li><code>--body</code> holds longer notes. <code>park edit 1 --append-body "..."</code> adds to it later.</li>
+  </ul>
+  <p>park records the hostname, the git remote and the current branch for you.</p>
+</template>
+
+<template id="t-find">
+  <p class="eyebrow">Step 3 · About 3 minutes</p>
+  <h2>Find it again</h2>
+  <p class="lead">Three commands cover most lookups: list what is open, search for a word, then show one item in full.</p>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park list             <span class="c"># every active item, in every repo</span>
+<span class="p">$ </span>park list --current   <span class="c"># only this repo and branch</span>
+<span class="p">$ </span>park search redirect  <span class="c"># full-text search, active items</span></pre></div>
+  <div class="term out"><div class="term-head">Output of park search redirect</div><pre>#1  [active]  Fix login redirect loop
+     Users bounce between /login and /dashboard
+     https://github.com/me/my-app  (main)</pre></div>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park show 1
+<span class="p">$ </span>park show -           <span class="c"># the item you added last</span></pre></div>
+  <div class="term out"><div class="term-head">Output of park show 1</div><pre># Fix login redirect loop  [#1 · active]
+
+**Users bounce between /login and /dashboard**
+
+Why: Blocks the release
+How to apply: Start at auth/session.go:42
+
+Type: task  Tags: auth
+Repo: https://github.com/me/my-app  Branch: main
+Device: my-laptop  Parked: 2026-11-20 11:01</pre></div>
+  <p>Search covers the name, description, body, why, how and tags. Add <code>--status all</code> to include resolved items.</p>
+</template>
+
+<template id="t-finish">
+  <p class="eyebrow">Step 4 · About 1 minute</p>
+  <h2>Close the loop</h2>
+  <p class="lead">Resolve an item as soon as the work is done. A short list of open items is one you will read.</p>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park done 1           <span class="c"># resolved</span>
+<span class="p">$ </span>park archive 1        <span class="c"># no longer relevant, kept for the record</span>
+<span class="p">$ </span>park reopen 1         <span class="c"># back to active</span></pre></div>
+  <div class="term out"><div class="term-head">Output of park done 1</div><pre>#1 marked as resolved</pre></div>
+  <h3>Removing items for good</h3>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park delete 1         <span class="c"># removes one item</span>
+<span class="p">$ </span>park prune --days 30  <span class="c"># removes resolved and archived items older than 30 days</span></pre></div>
+  <p>Both commands are permanent. Use <code>done</code> or <code>archive</code> when you are unsure.</p>
+</template>
+
+<template id="t-organise">
+  <p class="eyebrow">Step 5 · About 3 minutes</p>
+  <h2>Organise with tags, types and milestones</h2>
+  <p class="lead">Tags group related items. Types say what kind of work an item is. A milestone collects the items that ship together.</p>
+  <h3>Tags</h3>
+  <p>Tag every item for a ticket with the ticket key, so one command finds them all:</p>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park edit 1 --tags "auth,ABC-123"
+<span class="p">$ </span>park list --tag ABC-123</pre></div>
+  <h3>Types</h3>
+  <p>The default type is <code>task</code>. The others are <code>project</code>, <code>bug</code>, <code>feature</code>, <code>chore</code> and <code>docs</code>. Filter with <code>park list --type bug</code>.</p>
+  <h3>Milestones</h3>
+  <p>A milestone is an item of type <code>project</code>. Point other items at it with <code>--parent</code>, and <code>park show</code> counts how many are done.</p>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park add --name "Q3 release" --type project
+<span class="p">$ </span>park add --name "Write migration notes" --type docs --parent -
+<span class="p">$ </span>park show 2</pre></div>
+  <div class="term out"><div class="term-head">Output of park show 2</div><pre># Q3 release  [#2 · active]
+
+Type: project
+Repo: https://github.com/me/my-app  Branch: main
+Device: my-laptop  Parked: 2026-11-20 11:01
+
+Children: 0/1 done
+
+#3  [active]  Write migration notes
+     https://github.com/me/my-app  (main)</pre></div>
+  <h3>Another repository</h3>
+  <p>To file an item under a repository you are not in, pass its remote: <code>park add --name "x" --remote git@github.com:me/other.git</code>.</p>
+</template>
+
+<template id="t-agent">
+  <p class="eyebrow">Step 6 · About 5 minutes</p>
+  <h2>Connect your coding agent</h2>
+  <p class="lead">With the hooks installed, the agent sees this repo's parked items when a session starts, and again when it opens a file an item names.</p>
+  <h3>Install the hooks</h3>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park hook             <span class="c"># prints the config, changes nothing</span>
+<span class="p">$ </span>park hook --install   <span class="c"># adds it to Claude Code and Codex settings</span></pre></div>
+  <p>The installer writes to <code>~/.claude/settings.json</code> and <code>~/.codex/hooks.json</code>, for whichever exists, and keeps the hooks already there. Hooks load when a session starts, so open a new session afterwards. In Claude Code, <code>/hooks</code> reloads them.</p>
+  <h3>What the agent sees</h3>
+  <p>At session start, the agent gets one line per active item for the current repository:</p>
+  <div class="term out"><div class="term-head">Session context</div><pre>Parked items here (id name [tags]).
+
+1 Fix login redirect loop [auth]
+2 Q3 release</pre></div>
+  <p>In Claude Code, a second hook runs when the agent reads or edits a file. If an active item names that file, the agent sees up to five matching items and can run <code>park show</code> for detail. Codex gets only the session-start hook.</p>
+  <h3>Let the agent park for you</h3>
+  <p>The repository includes a Claude Code skill. With it installed, you can say "park this", "show parked" or "work on #2".</p>
+  <div class="term"><div class="term-head">Terminal, from a park checkout<button class="copy">Copy</button></div><pre><span class="p">$ </span>mkdir -p ~/.claude/skills/park
+<span class="p">$ </span>cp .claude/skills/park/SKILL.md ~/.claude/skills/park/SKILL.md</pre></div>
+</template>
+
+<template id="t-sync">
+  <p class="eyebrow">Step 7 · Optional · About 5 minutes</p>
+  <h2>Sync between machines</h2>
+  <p class="lead">Skip this step if you use park on one machine. With sync, each machine writes its own log file to a shared folder and reads everyone else's.</p>
+  <h3>On every machine</h3>
+  <p>Point <code>PARK_SYNC_DIR</code> at a folder your file syncer keeps in step. Leave <code>PARK_DB</code> on its local default.</p>
+  <div class="term"><div class="term-head">Shell profile<button class="copy">Copy</button></div><pre>export PARK_DB="$HOME/.local/share/park/park.db"
+export PARK_SYNC_DIR="$HOME/sync/park"</pre></div>
+  <h3>Once, on the machine that has your items</h3>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park sync-seed --i-understand-this-runs-once</pre></div>
+  <p>A second run, or a run on a second machine, duplicates every item. The command refuses if this machine's log already has entries.</p>
+  <h3>On each other machine</h3>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park rebuild --yes</pre></div>
+  <p><code>rebuild</code> replaces the local database with what the logs contain. Run it only when the logs hold everything you want to keep.</p>
+  <div class="note"><strong>Keep the database out of the synced folder</strong><p>SQLite stores one database in several files. A file syncer copies them one at a time, and a half-copied set fails with <code>database disk image is malformed</code>. A log file has one writer and only grows, which syncers handle safely.</p></div>
+  <p>Item numbers such as <code>#12</code> are local to each machine. When two machines change the same item, the later change wins.</p>
+</template>
+
+<template id="t-review">
+  <p class="eyebrow">Step 8 · About 2 minutes</p>
+  <h2>Browse and review</h2>
+  <p class="lead">Open your items in a browser, and check whether parked items come back into your work.</p>
+  <h3>Web view</h3>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park serve            <span class="c"># http://127.0.0.1:7654</span></pre></div>
+  <p>The web view has search, a repository filter, and clickable tags and types. It is read-only and shows the items as they were when the server started.</p>
+  <h3>Usage report</h3>
+  <div class="term"><div class="term-head">Terminal<button class="copy">Copy</button></div><pre><span class="p">$ </span>park stats --days 7</pre></div>
+  <div class="term out"><div class="term-head">Output</div><pre>Usage in the last 7 days
+
+Events
+  surfaced   search         1
+  viewed     cli            2
+  resolved   cli            1
+
+Surfaced items: 1
+  later viewed:   1 (100%)
+  later resolved: 1 (100%)
+
+How items came back
+  source         surfaced  viewed  resolved
+  session-hook          0       0         0
+  file-hook             0       0         0
+  search                1       1         1
+  list-tag              0       0         0
+  direct                0       1         0</pre></div>
+  <p>Each view or resolve counts towards the way the item last reached you in the 2 hours before: the session hook, the file hook, a search or a tag list. <code>direct</code> means you went to the item without it being shown first. The record stays on this machine and does not sync.</p>
+  <h3>You are set up</h3>
+  <p>Next time you are interrupted, run <code>park add</code> before you switch. When you come back, run <code>park list --current</code>.</p>
+  <p>Every command and flag is listed in the <a href="https://github.com/svandragt/park#readme">README</a>, and <code>park <p>Next time you are interrupted, run <code>park add</code> before you switch. When you come back, run <code>park list --current</code>.</p>lt;command<p>Next time you are interrupted, run <code>park add</code> before you switch. When you come back, run <code>park list --current</code>.</p>gt; -h</code> shows the flags for one command.</p>
+</template>
+
+<script>
+(function () {
+  var steps = [
+    { id: "install",  title: "Install" },
+    { id: "park",     title: "Park an item" },
+    { id: "find",     title: "Find it again" },
+    { id: "finish",   title: "Close the loop" },
+    { id: "organise", title: "Organise" },
+    { id: "agent",    title: "Connect your agent" },
+    { id: "sync",     title: "Sync machines", optional: true },
+    { id: "review",   title: "Browse and review" }
+  ];
+  var KEY = "park-onboarding-done";
+  var done = {};
+  try { done = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { done = {}; }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (e) {} }
+
+  var rail = document.getElementById("rail");
+  var main = document.getElementById("step");
+
+  steps.forEach(function (s, i) {
+    var li = document.createElement("li");
+    li.innerHTML = '<a href="#' + s.id + '"><span class="num">' + (i + 1) + '</span><span>' + s.title +
+      (s.optional ? '<span class="opt">optional</span>' : '') + '</span><span class="tick" aria-label="done">✓</span></a>';
+    rail.appendChild(li);
+  });
+
+  function current() {
+    var h = location.hash.slice(1);
+    var i = steps.findIndex(function (s) { return s.id === h; });
+    return i < 0 ? 0 : i;
+  }
+
+  function updateProgress() {
+    var n = steps.filter(function (s) { return done[s.id]; }).length;
+    document.getElementById("progress-text").textContent = n + " of " + steps.length;
+    document.getElementById("progress-bar").style.width = (n / steps.length * 100) + "%";
+    rail.querySelectorAll("a").forEach(function (a, i) { a.classList.toggle("done", !!done[steps[i].id]); });
+  }
+
+  function render(focus) {
+    var i = current(), s = steps[i];
+    main.innerHTML = "";
+    main.appendChild(document.getElementById("t-" + s.id).content.cloneNode(true));
+    var foot = document.createElement("div");
+    foot.className = "foot";
+    foot.innerHTML =
+      '<label class="check"><input type="checkbox" id="done-' + s.id + '"' + (done[s.id] ? " checked" : "") +
+      '><span class="box" aria-hidden="true">✓</span>I have done this step</label>' +
+      '<div class="nav-btns"><button class="btn" id="prev"' + (i === 0 ? " disabled" : "") + '>Back</button>' +
+      '<button class="btn primary" id="next"' + (i === steps.length - 1 ? " disabled" : "") + '>Next step</button></div>';
+    main.appendChild(foot);
+    rail.querySelectorAll("a").forEach(function (a, j) {
+      if (j === i) a.setAttribute("aria-current", "step"); else a.removeAttribute("aria-current");
+    });
+    document.getElementById("done-" + s.id).addEventListener("change", function (e) {
+      done[s.id] = e.target.checked; save(); updateProgress();
+    });
+    document.getElementById("prev").addEventListener("click", function () { location.hash = steps[i - 1].id; });
+    document.getElementById("next").addEventListener("click", function () {
+      if (!done[s.id]) { done[s.id] = true; save(); updateProgress(); }
+      location.hash = steps[i + 1].id;
+    });
+    main.querySelectorAll(".copy").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var pre = b.closest(".term").querySelector("pre");
+        var text = Array.prototype.map.call(pre.childNodes, function (n) {
+          return n.nodeType === 1 && (n.classList.contains("p") || n.classList.contains("c")) ? "" : n.textContent;
+        }).join("").split("\n").map(function (l) { return l.replace(/\s+$/, ""); }).join("\n");
+        function ok() { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500); }
+        function fallback() {
+          var r = document.createRange(); r.selectNodeContents(pre);
+          var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+          b.textContent = "Selected";
+        }
+        try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (e) { fallback(); }
+      });
+    });
+    if (focus) { main.focus({ preventScroll: true }); main.scrollIntoView({ block: "start", behavior: "smooth" }); }
+    updateProgress();
+  }
+
+  window.addEventListener("hashchange", function () { render(true); });
+  render(false);
+})();
+</script>
+</body>
+</html>
