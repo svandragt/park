@@ -148,7 +148,7 @@ button.btn[disabled] { opacity: .4; cursor: default; }
 
   <div class="layout">
     <nav class="rail" aria-label="Steps"><ol id="rail"></ol></nav>
-    <main class="step" id="step" tabindex="-1"></main>
+    <main class="step" id="step" tabindex="-1"><noscript><p>This guide needs JavaScript to show its steps. The <a href="https://github.com/svandragt/park#readme">README</a> covers the same commands.</p></noscript></main>
   </div>
 </div>
 
@@ -353,7 +353,7 @@ How items came back
   steps.forEach(function (s, i) {
     var li = document.createElement("li");
     li.innerHTML = '<a href="#' + s.id + '"><span class="num">' + (i + 1) + '</span><span>' + s.title +
-      (s.optional ? '<span class="opt">optional</span>' : '') + '</span><span class="tick" aria-label="done">✓</span></a>';
+      (s.optional ? '<span class="opt">optional</span>' : '') + '</span><span class="tick" role="img" aria-label="done">✓</span></a>';
     rail.appendChild(li);
   });
 
