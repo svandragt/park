@@ -108,6 +108,13 @@ func RunEdit(store *park.Store, args []string) error {
 		}
 	}
 
+	var prev *park.Item
+	if statusSet {
+		var err error
+		if prev, err = store.Get(id); err != nil {
+			return err
+		}
+	}
 	if err := store.Update(id, f); err != nil {
 		return err
 	}
@@ -115,6 +122,7 @@ func RunEdit(store *park.Store, args []string) error {
 		if err := store.SetStatus(id, *status); err != nil {
 			return err
 		}
+		recordClose(store, prev, *status)
 	}
 	fmt.Printf("#%d updated\n", id)
 	if statusSet && *status == "resolved" {

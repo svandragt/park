@@ -191,9 +191,10 @@ session. Codex has no matching event, so its install adds only the `SessionStart
 ### See whether parked items get used
 
 Park keeps a local record of when an item is surfaced (by the session hook, the file hook,
-`park search` or `park list --tag`), viewed (`park show`) and resolved (`park done`).
-The session hook counts only the items that fit in the first 2 KB of its output, because
-the agent does not see the rest. The record stays on the machine and does not sync.
+`park search` or `park list --tag`), viewed (`park show`), resolved (`park done`) and
+archived (`park archive`). The session hook counts only the items that fit in the first
+2 KB of its output, because the agent does not see the rest. The record stays on the
+machine and does not sync.
 
 ```bash
 park stats              # the last 30 days
@@ -201,9 +202,11 @@ park stats --days 7
 ```
 
 The report counts events by kind and source, and gives the share of surfaced items that
-were viewed or resolved afterwards. A table shows how items came back: each view or
-resolve is credited to the way the item was most recently surfaced in the 2 hours before,
-or to `direct` when it was not surfaced.
+were viewed, resolved or archived afterwards. A table shows how items came back: each
+view, resolve or archive is credited to the way the item was most recently surfaced in the
+2 hours before, or to `direct` when it was not surfaced. An item you resolve and then
+archive, for example to correct a `park done`, counts in both shares, so the shares can
+add up to more than 100%.
 
 The installer merges into any existing `SessionStart` and `PostToolUse` hooks rather than
 replacing them.

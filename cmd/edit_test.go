@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -113,5 +114,47 @@ func TestRunEdit_EmptyRemoteClearsBoth(t *testing.T) {
 	got, _ := s.Get(id)
 	if got.Remote != "" || got.Branch != "" {
 		t.Errorf("remote/branch = %q/%q", got.Remote, got.Branch)
+	}
+}
+
+func TestRunEdit_StatusUsageRows(t *testing.T) {
+	for _, tc := range []struct{ status string }{{"archived"}, {"resolved"}, {"active"}} {
+		t.Run(tc.status, func(t *testing.T) {
+			s := newTestStore(t)
+			id, _ := s.Add(park.Item{Name: "foo"})
+			if err := RunEdit(s, []string{"-", "--status", tc.status}); err != nil {
+				t.Fatal(err)
+			}
+			want := []string(nil)
+			if tc.status != "active" {
+				want = usageFor(t, s, tc.status, "cli", id)
+			}
+			got := usageRows(t, s)
+			if !(len(got) == 0 && len(want) == 0) && !reflect.DeepEqual(got, want) {
+				t.Errorf("usage rows = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestRunEdit_NoRowWhenStatusUnchanged(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "foo"})
+	_ = s.SetStatus(id, "archived")
+	if err := RunEdit(s, []string{"-", "--status", "archived"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := usageRows(t, s); len(got) != 0 {
+		t.Errorf("usage rows = %q, want none", got)
+	}
+}
+
+func TestRunReopen_NoUsageRow(t *testing.T) {
+	s := newTestStore(t)
+	id, _ := s.Add(park.Item{Name: "foo"})
+	_ = s.SetStatus(id, "resolved")
+	captureStdout(t, func() error { return RunReopen(s, []string{"1"}) })
+	if got := usageRows(t, s); len(got) != 0 {
+		t.Errorf("usage rows = %q, want none", got)
 	}
 }

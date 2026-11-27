@@ -17,6 +17,7 @@ func statsLines(t *testing.T, args ...string) []string {
 		{"2h", "a", "resolved", "cli"},
 		{"72h", "b", "surfaced", "search"},
 		{"1h", "c", "viewed", "cli"},
+		{"71h", "b", "archived", "cli"},
 	} {
 		d, _ := time.ParseDuration(row[0])
 		ts := time.Now().Add(-d).UTC().Format("2006-01-02 15:04:05")
@@ -56,15 +57,17 @@ func TestRunStats_PrintsCountsSharesAndAttribution(t *testing.T) {
 		"surfaced search 1",
 		"viewed cli 2",
 		"resolved cli 1",
+		"archived cli 1",
 		"Surfaced items: 2",
 		"later viewed: 1 (50%)",
 		"later resolved: 1 (50%)",
+		"later archived: 1 (50%)",
 		"How items came back",
-		"session-hook 1 1 1",
-		"file-hook 0 0 0",
-		"search 1 0 0",
-		"list-tag 0 0 0",
-		"direct 0 1 0",
+		"session-hook 1 1 1 0",
+		"file-hook 0 0 0 0",
+		"search 1 0 0 1",
+		"list-tag 0 0 0 0",
+		"direct 0 1 0 0",
 	)
 }
 
@@ -74,7 +77,7 @@ func TestRunStats_DaysLimitsTheWindow(t *testing.T) {
 	wantLines(t, lines,
 		"Surfaced items: 1",
 		"later viewed: 1 (100%)",
-		"search 0 0 0",
+		"search 0 0 0 0",
 	)
 }
 
@@ -86,8 +89,9 @@ func TestRunStats_EmptyTablePrintsZeros(t *testing.T) {
 		"Surfaced items: 0",
 		"later viewed: 0 (0%)",
 		"later resolved: 0 (0%)",
-		"session-hook 0 0 0",
-		"direct 0 0 0",
+		"later archived: 0 (0%)",
+		"session-hook 0 0 0 0",
+		"direct 0 0 0 0",
 	)
 	if strings.Contains(out, "NaN") {
 		t.Errorf("output contains NaN:\n%s", out)
