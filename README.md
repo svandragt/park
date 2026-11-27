@@ -171,7 +171,9 @@ or pass `--agent claude`, `--agent codex`, or `--settings <path>` to target one 
 
 At the start of each session, `park hook run` reads the session's working directory,
 resolves its git remote, and injects that repo's active items as session context, one
-line per item with its name and tags. Tags that the name already contains are left out,
+line per item with its name and tags. Items parked on the current branch come first,
+then items tagged with the ticket key the branch name starts with (`ABC-123` for
+`ABC-123-slug`, `1234` for `1234-slug`), then the rest, newest first. Tags that the name already contains are left out,
 so more items fit in the part of the context the agent reads. To keep every tag, change the
 hook command to `park hook run --compact=false`. The agent runs `park search` or
 `park list --tag` for the detail. You also
