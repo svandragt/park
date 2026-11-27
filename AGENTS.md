@@ -32,16 +32,16 @@ Set `PARK_SYNC_DIR` to enable multi-machine sync; leave it unset for a single ma
 | Command | Action |
 |---|---|
 | `add` | Insert a new item (default `--type task`); auto-captures hostname, git remote, and current git branch; `--parent <id>` links it to a parent item; `--remote <url>` files it under that remote with no branch |
-| `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`, `--status`, `--parent`, `--remote`; `--parent ""` clears; `--remote` also clears the branch, and `--remote ""` clears both); `--append-body` and `--append-how` add to a field instead of replacing it |
+| `edit <id>` | Update fields on an existing item (`--name`, `--desc`, `--body`, `--why`, `--how`, `--tags`, `--type`, `--status`, `--parent`, `--remote`; `--parent ""` clears; `--remote` also clears the branch, and `--remote ""` clears both); `--append-body` and `--append-how` add to a field instead of replacing it; `--status resolved`/`archived` also records a `resolved` or `archived` / `cli` usage row when the status changes |
 | `list` / `ls` | List items filtered by `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--parent` (default status: `active`); shows tags inline; `--parent` adds a `#<id> <name>  <done>/<total> done` header. With `--tag` it records `surfaced` / `list-tag` usage rows for the items it prints; a list without `--tag` records nothing |
 | `search <keyword>` | Full-text search across name, description, body, why, how-to-apply, tags (FTS5, porter stemming); supports `--status`, `--remote`, `--branch`, `--tag`, `--type`, `--parent`, `--current` filters (default status: `active`); records `surfaced` / `search` usage rows for the items it prints |
 | `show <id>` / `show --current` | Full detail view of one item (`--current`: the first active item for the current remote and branch, in `list` order), including its parent and a `Children:` block with a done count. Records a `viewed` / `cli` usage row, which leaves `updated_at` alone and emits no sync event |
-| `done <id>` | Set status → `resolved` and record a `resolved` / `cli` usage row; warns (without blocking) if the item has open children |
-| `archive <id>` | Set status → `archived` |
+| `done <id>` | Set status → `resolved` and record a `resolved` / `cli` usage row (only when the status changes); warns (without blocking) if the item has open children |
+| `archive <id>` | Set status → `archived` and record an `archived` / `cli` usage row (only when the status changes) |
 | `reopen <id>` | Set status → `active` (reverse done/archive) |
 | `delete <id>` | Hard-delete an item from the database; clears `parent` on its children |
 | `prune` | Hard-delete resolved/archived items older than `--days` (default 30) |
-| `stats` | Report on the local `usage` table for the last `--days` (default 30), as plain text: counts per event and source; the share of distinct items surfaced in the window that were later viewed and later resolved (an event at or after the item's first surfaced `ts`); and a "How items came back" table of surfaced, viewed and resolved per source (`session-hook`, `file-hook`, `search`, `list-tag`, `direct`). Each viewed or resolved event is credited to the source of the same item's most recent `surfaced` event in the 2 hours before it, or to `direct`. An empty table prints zeros |
+| `stats` | Report on the local `usage` table for the last `--days` (default 30), as plain text: counts per event and source; the share of distinct items surfaced in the window that were later viewed, later resolved and later archived (an event at or after the item's first surfaced `ts`); and a "How items came back" table of surfaced, viewed, resolved and archived per source (`session-hook`, `file-hook`, `search`, `list-tag`, `direct`). Each viewed, resolved or archived event is credited to the source of the same item's most recent `surfaced` event in the 2 hours before it, or to `direct`. An empty table prints zeros |
 | `migrate <dest-dir>` | Copy DB to a new directory and print the `PARK_DB` export line |
 | `rename-remote <old> <new>` | Bulk-update `remote` across all items |
 | `retype <old> <new>` | Bulk-change `type` across all items, one edit event per item so other devices converge |
@@ -74,7 +74,7 @@ Things to preserve when changing this code:
   offset there.
 - **`uid` is the identity; the integer id is a local display handle.** Never match items
   across machines by id, and never quote an id anywhere off-machine.
-- **`usage` is local.** `Store.RecordUsage` writes `usage(ts, item_uid, event, source)` with no sync event, so it is not in the log, and `ResetLocal` (so `rebuild`) leaves it alone. Rows key on the item's `uid`, never the integer id. Writers ignore every failure, because a hook must stay silent. Events are `surfaced` (sources `session-hook`, `file-hook`, `search`, `list-tag`), `viewed` (`cli`) and `resolved` (`cli`).
+- **`usage` is local.** `Store.RecordUsage` writes `usage(ts, item_uid, event, source)` with no sync event, so it is not in the log, and `ResetLocal` (so `rebuild`) leaves it alone. Rows key on the item's `uid`, never the integer id. Writers ignore every failure, because a hook must stay silent. Events are `surfaced` (sources `session-hook`, `file-hook`, `search`, `list-tag`), `viewed` (`cli`), `resolved` (`cli`) and `archived` (`cli`). `done`, `archive` and `edit --status resolved`/`archived` write the last two, only when the status changes.
 - **An item's `device` is where it was parked**, which is not the same as the machine that
   wrote the log line. Keep them distinct when adding event fields.
 

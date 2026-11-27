@@ -72,6 +72,9 @@ func TestUsage_CountsSharesAndAttribution(t *testing.T) {
 	// D: viewed before it was surfaced, so the view is not "later".
 	seedUsage(t, s, ago(4*time.Hour), "D", "viewed", "cli")
 	seedUsage(t, s, ago(3*time.Hour), "D", "surfaced", "list-tag")
+	// F: archived 1 h after a list-tag sighting.
+	seedUsage(t, s, ago(8*time.Hour), "F", "surfaced", "list-tag")
+	seedUsage(t, s, ago(7*time.Hour), "F", "archived", "cli")
 	// Outside the 30-day window: not counted anywhere.
 	seedUsage(t, s, ago(40*24*time.Hour), "E", "surfaced", "file-hook")
 	seedUsage(t, s, ago(40*24*time.Hour), "A", "viewed", "cli")
@@ -84,20 +87,23 @@ func TestUsage_CountsSharesAndAttribution(t *testing.T) {
 	want := park.UsageStats{
 		Counts: []park.UsageCount{
 			{Event: "surfaced", Source: "file-hook", N: 1},
-			{Event: "surfaced", Source: "list-tag", N: 1},
+			{Event: "surfaced", Source: "list-tag", N: 2},
 			{Event: "surfaced", Source: "search", N: 1},
 			{Event: "surfaced", Source: "session-hook", N: 1},
 			{Event: "viewed", Source: "cli", N: 4},
 			{Event: "resolved", Source: "cli", N: 1},
+			{Event: "archived", Source: "cli", N: 1},
 		},
 		Attributed: []park.UsageCount{
 			{Event: "viewed", Source: "direct", N: 3},
 			{Event: "viewed", Source: "file-hook", N: 1},
 			{Event: "resolved", Source: "file-hook", N: 1},
+			{Event: "archived", Source: "list-tag", N: 1},
 		},
-		Surfaced: 3, // A, B, D
+		Surfaced: 4, // A, B, D, F
 		Viewed:   2, // A, B
 		Resolved: 1, // A
+		Archived: 1, // F
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Usage =\n%+v\nwant\n%+v", got, want)
