@@ -651,7 +651,7 @@ func TestInstallHook_SkipsPostToolUseWhenNotAsked(t *testing.T) {
 // git runs a git command in dir and fails the test on error.
 func git(t *testing.T, dir string, args ...string) {
 	t.Helper()
-	c := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...)
+	c := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgSign=false"}, args...)...)
 	if out, err := c.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v: %s", args, err, out)
 	}

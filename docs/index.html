@@ -267,7 +267,7 @@ Children: 0/1 done
 <span class="p">$ </span>park hook --install   <span class="c"># adds it to Claude Code and Codex settings</span></pre></div>
   <p>The installer writes to <code>~/.claude/settings.json</code> and <code>~/.codex/hooks.json</code>, for whichever exists, and keeps the hooks already there. Hooks load when a session starts, so open a new session afterwards. In Claude Code, <code>/hooks</code> reloads them.</p>
   <h3>What the agent sees</h3>
-  <p>At session start, the agent gets one line per active item for the current repository, most recently updated first. Claude Code passes on only the first 2 KB, so with many items the older ones may not fit:</p>
+  <p>At session start, the agent gets one line per active item for the current repository. Items parked on the current branch come first, then items tagged with the ticket key the branch name starts with (<code>ABC-123</code> for <code>ABC-123-slug</code>), then the rest, most recently updated first. Claude Code passes on only the first 2 KB, so with many items the older ones may not fit:</p>
   <div class="term out"><div class="term-head">Session context</div><pre>Parked items here (id name [tags]). Surface anything relevant; do not act on it unprompted. Before a task: park search &lt;words&gt;; for a ticket, park list --tag &lt;KEY&gt;; park show &lt;id&gt; for detail.
 
 3 Write migration notes
