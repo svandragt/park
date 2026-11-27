@@ -115,7 +115,7 @@ func TestHookRun_OneLinePerItem(t *testing.T) {
 	id, err := store.Add(park.Item{
 		Name:        "Fix the widget",
 		Description: "The widget leaks memory",
-		Tags:        "BH-1,widget",
+		Tags:        "ABC-1,widget",
 		Remote:      "https://github.com/svandragt/park",
 	})
 	if err != nil {
@@ -127,7 +127,7 @@ func TestHookRun_OneLinePerItem(t *testing.T) {
 
 	ctx := hookContext(t, store, dir, false)
 
-	if want := fmt.Sprintf("#%d  Fix the widget  [BH-1,widget]\n", id); !strings.Contains(ctx, want) {
+	if want := fmt.Sprintf("#%d  Fix the widget  [ABC-1,widget]\n", id); !strings.Contains(ctx, want) {
 		t.Errorf("additionalContext missing line %q:\n%s", want, ctx)
 	}
 	if !strings.Contains(ctx, "  Untagged item\n") || strings.Contains(ctx, "Untagged item  [") {
@@ -149,8 +149,8 @@ func TestHookRun_CompactDropsRedundantTags(t *testing.T) {
 	store := newTestStore(t)
 	dir := newTestRepo(t, "https://github.com/svandragt/park")
 	id, err := store.Add(park.Item{
-		Name:   "BH-716: fix the widget",
-		Tags:   "bh,BH-716,widget,consent,Consent",
+		Name:   "ABC-716: fix the widget",
+		Tags:   "abc,ABC-716,widget,consent,Consent",
 		Remote: "https://github.com/svandragt/park",
 	})
 	if err != nil {
@@ -162,7 +162,7 @@ func TestHookRun_CompactDropsRedundantTags(t *testing.T) {
 
 	ctx := hookContext(t, store, dir, true)
 
-	if want := fmt.Sprintf("\n%d BH-716: fix the widget [consent]\n", id); !strings.Contains(ctx, want) {
+	if want := fmt.Sprintf("\n%d ABC-716: fix the widget [consent]\n", id); !strings.Contains(ctx, want) {
 		t.Errorf("additionalContext missing line %q:\n%s", want, ctx)
 	}
 	if !strings.Contains(ctx, " Untagged item\n") {

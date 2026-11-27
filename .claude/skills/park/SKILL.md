@@ -1,7 +1,7 @@
 ---
 name: park
 version: 1.6.0
-description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles switching to work on a ticket (BH-740, ABC-123): lists every parked item for it. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
+description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles switching to work on a ticket (ABC-123, 1234): lists every parked item for it. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
 author: svandragt
 ---
 
@@ -41,7 +41,7 @@ A finding raised mid-task costs attention whether or not it's acted on; a list a
 | `--body` | The current context: what file/function/problem, current state |
 | `--why` | Why this matters / what the end goal is |
 | `--how` | Concrete next step to resume from here |
-| `--tags` | The exact ticket key(s) when the item belongs to a ticket (`BH-818,BH-817`), plus optional keywords (language, area, feature name). A ticket can have several items. |
+| `--tags` | The exact ticket key(s) when the item belongs to a ticket (`ABC-818,ABC-817`), plus optional keywords (language, area, feature name). A ticket can have several items. |
 | `--type` | Optional: `task` (default), `project` (a milestone), `bug`, `feature`, `chore`, `docs` |
 | `--parent` | Optional: id of a parent item, such as a milestone (`240`, `#240` or `-` for the most recent) |
 | `--remote` | Optional: file under this git remote URL instead of the current repo's (no branch is stored) |
