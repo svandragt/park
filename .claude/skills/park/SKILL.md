@@ -1,6 +1,6 @@
 ---
 name: park
-version: 1.6.0
+version: 1.7.0
 description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles switching to work on a ticket (BH-740, ABC-123): lists every parked item for it. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
 author: svandragt
 ---
@@ -20,6 +20,7 @@ Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.d
 7. Parked items surface at session start only if the `SessionStart` hook is installed. If the user is surprised that an item did not surface, or asks how to be reminded automatically, run `park hook --install` and tell them it takes effect next session. On Claude Code the same command also installs a `PostToolUse` hook that surfaces items naming a file when you read or edit it, once per session. Surface those items if they are relevant, and do not act on them unprompted. Park records locally when an item is surfaced (session hook, file hook, `park search`, `park list --tag`), viewed (`park show`) and resolved (`park done`). When the user asks whether parked items get used, run `park stats`.
 8. When the session switches to work on a ticket, list every parked item for it before starting: run `park list --status active --tag <KEY>`, then `park search "<KEY>"` for items that name the key only in their text. Read each hit with `park show <id>` and present them all. The session-start hook preview shows only the newest few items, so older items for the ticket are missing from it.
 9. Never mention park IDs in anything that leaves this machine — PR descriptions, commit messages, GitHub issues, comments. The park DB is local to the user only, so `#3` means nothing to anyone else. Say "is parked" or "tracked locally" instead. Park IDs are fine in chat replies to the user.
+10. When you work on a PR in a repo, check that repo's parked items for knowledge about how the codebase works. If the PR already changes the area an item describes, move the item into the repo's AGENTS.md in the same PR and resolve it. Don't open a PR only to move parked items. In a shared repo, propose the AGENTS.md change in one line first.
 
 ## Proactive parking
 
