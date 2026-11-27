@@ -7,7 +7,7 @@ author: svandragt
 
 # Park Skill
 
-Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.db`, defaulting to `~/.local/share/park/park.db`) via the `park` CLI. Override DB path with `PARK_DB` env var for cross-device sync (Syncthing, Dropbox, etc.).
+Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.db`, defaulting to `~/.local/share/park/park.db`) via the `park` CLI. Override the DB path with the `PARK_DB` env var. For cross-device sync, set `PARK_SYNC_DIR` instead, and never put the DB in a synced folder.
 
 ## Rules
 
