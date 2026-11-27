@@ -449,16 +449,18 @@ func markShown(record string, items []park.Item) {
 }
 
 // ticketKeyRe matches a Jira-style key (ABC-123) or a bare number (1234) at the
-// start of a branch name, ending the name or followed by "-".
-var ticketKeyRe = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9]*-[0-9]+|[0-9]+)(-|$)`)
+// start of a branch path segment, ending it or followed by "-" or "_".
+var ticketKeyRe = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9]*-[0-9]+|[0-9]+)([-_]|$)`)
 
-// ticketKey returns the uppercased ticket key a branch name starts with, or "".
+// ticketKey returns the uppercased ticket key that starts the first path
+// segment able to hold one (feature/ABC-123-slug, ABC-123/fix), or "".
 func ticketKey(branch string) string {
-	m := ticketKeyRe.FindStringSubmatch(branch)
-	if m == nil {
-		return ""
+	for _, seg := range strings.Split(branch, "/") {
+		if m := ticketKeyRe.FindStringSubmatch(seg); m != nil {
+			return strings.ToUpper(m[1])
+		}
 	}
-	return strings.ToUpper(m[1])
+	return ""
 }
 
 // hookRank puts items on the session's branch first, then items tagged with

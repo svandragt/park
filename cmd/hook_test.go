@@ -729,15 +729,20 @@ func TestHookRun_RecordsRankedItemsWithin2KB(t *testing.T) {
 
 func TestTicketKey(t *testing.T) {
 	for branch, want := range map[string]string{
-		"ABC-123-slug": "ABC-123",
-		"abc-123-slug": "ABC-123",
-		"ABC-123":      "ABC-123",
-		"1234-slug":    "1234",
-		"1234":         "1234",
-		"main":         "",
-		"":             "",
-		"feature/x":    "",
-		"ABC-slug":     "",
+		"ABC-123-slug":         "ABC-123",
+		"abc-123-slug":         "ABC-123",
+		"ABC-123":              "ABC-123",
+		"1234-slug":            "1234",
+		"1234":                 "1234",
+		"main":                 "",
+		"":                     "",
+		"feature/x":            "",
+		"ABC-slug":             "",
+		"ABC-123/fix-login":    "ABC-123",
+		"ABC-123_slug":         "ABC-123",
+		"feature/ABC-123-slug": "ABC-123",
+		"user/1234-slug":       "1234",
+		"feature/login":        "",
 	} {
 		if got := ticketKey(branch); got != want {
 			t.Errorf("ticketKey(%q) = %q, want %q", branch, got, want)
