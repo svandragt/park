@@ -33,11 +33,12 @@ func RunStats(store *park.Store, args []string) error {
 	fmt.Printf("\nSurfaced items: %d\n", st.Surfaced)
 	fmt.Printf("  later viewed:   %d (%s)\n", st.Viewed, share(st.Viewed, st.Surfaced))
 	fmt.Printf("  later resolved: %d (%s)\n", st.Resolved, share(st.Resolved, st.Surfaced))
+	fmt.Printf("  later archived: %d (%s)\n", st.Archived, share(st.Archived, st.Surfaced))
 
-	fmt.Printf("\nHow items came back\n  %-14s %8s %7s %9s\n", "source", "surfaced", "viewed", "resolved")
+	fmt.Printf("\nHow items came back\n  %-14s %8s %7s %9s %9s\n", "source", "surfaced", "viewed", "resolved", "archived")
 	for _, src := range statsSources {
-		fmt.Printf("  %-14s %8d %7d %9d\n", src,
-			usageN(st.Counts, "surfaced", src), usageN(st.Attributed, "viewed", src), usageN(st.Attributed, "resolved", src))
+		fmt.Printf("  %-14s %8d %7d %9d %9d\n", src,
+			usageN(st.Counts, "surfaced", src), usageN(st.Attributed, "viewed", src), usageN(st.Attributed, "resolved", src), usageN(st.Attributed, "archived", src))
 	}
 	return nil
 }

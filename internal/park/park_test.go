@@ -543,9 +543,9 @@ func TestUpdate_RemoteAndBranch(t *testing.T) {
 
 func TestSearch_HyphenatedTicketKey(t *testing.T) {
 	s := newTestStore(t)
-	s.Add(park.Item{Name: "follow up BH-716 email"})
+	s.Add(park.Item{Name: "follow up ABC-716 email"})
 
-	results, err := s.Search("BH-716", park.ListFilter{})
+	results, err := s.Search("ABC-716", park.ListFilter{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

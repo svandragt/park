@@ -12,13 +12,14 @@ type UsageCount struct {
 // UsageStats summarises the usage table for a window.
 type UsageStats struct {
 	Counts []UsageCount // events in the window, per event and source
-	// Attributed counts viewed and resolved events per Source, where Source is
+	// Attributed counts viewed, resolved and archived events per Source, where Source is
 	// that of the item's most recent surfaced event in the 2 hours before it,
 	// or "direct" when there is none.
 	Attributed []UsageCount
 	Surfaced   int // distinct items surfaced in the window
 	Viewed     int // of those, items viewed after they were first surfaced
 	Resolved   int // of those, items resolved after they were first surfaced
+	Archived   int // of those, items archived after they were first surfaced
 }
 
 // RecordUsage writes one usage row per uid in a single transaction. Usage is
@@ -41,7 +42,7 @@ func (s *Store) RecordUsage(uids []string, event, source string) error {
 }
 
 // usageOrder lists the events in the order a reader follows an item.
-const usageOrder = `CASE event WHEN 'surfaced' THEN 0 WHEN 'viewed' THEN 1 ELSE 2 END`
+const usageOrder = `CASE event WHEN 'surfaced' THEN 0 WHEN 'viewed' THEN 1 WHEN 'resolved' THEN 2 WHEN 'archived' THEN 3 ELSE 4 END`
 
 // Usage summarises the usage rows since the given time. ts has one-second
 // resolution, so events in the same second as the one they are compared with
@@ -64,7 +65,7 @@ SELECT event, via, count(*) FROM (
 		  AND s.ts <= e.ts AND s.ts >= datetime(e.ts, '-2 hours')
 		ORDER BY s.ts DESC, s.rowid DESC LIMIT 1
 	), 'direct') AS via
-	FROM usage e WHERE e.event IN ('viewed', 'resolved') AND e.ts >= ?
+	FROM usage e WHERE e.event IN ('viewed', 'resolved', 'archived') AND e.ts >= ?
 ) GROUP BY event, via ORDER BY `+usageOrder+`, via`, cutoff); err != nil {
 		return st, err
 	}
@@ -75,8 +76,9 @@ WITH first AS (
 )
 SELECT count(*),
 	coalesce(sum(EXISTS(SELECT 1 FROM usage u WHERE u.item_uid = first.item_uid AND u.event = 'viewed' AND u.ts >= first.ts)), 0),
-	coalesce(sum(EXISTS(SELECT 1 FROM usage u WHERE u.item_uid = first.item_uid AND u.event = 'resolved' AND u.ts >= first.ts)), 0)
-FROM first`, cutoff).Scan(&st.Surfaced, &st.Viewed, &st.Resolved)
+	coalesce(sum(EXISTS(SELECT 1 FROM usage u WHERE u.item_uid = first.item_uid AND u.event = 'resolved' AND u.ts >= first.ts)), 0),
+	coalesce(sum(EXISTS(SELECT 1 FROM usage u WHERE u.item_uid = first.item_uid AND u.event = 'archived' AND u.ts >= first.ts)), 0)
+FROM first`, cutoff).Scan(&st.Surfaced, &st.Viewed, &st.Resolved, &st.Archived)
 	return st, err
 }
 

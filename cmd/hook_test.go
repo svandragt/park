@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -114,7 +115,7 @@ func TestHookRun_OneLinePerItem(t *testing.T) {
 	id, err := store.Add(park.Item{
 		Name:        "Fix the widget",
 		Description: "The widget leaks memory",
-		Tags:        "BH-1,widget",
+		Tags:        "ABC-1,widget",
 		Remote:      "https://github.com/svandragt/park",
 	})
 	if err != nil {
@@ -126,7 +127,7 @@ func TestHookRun_OneLinePerItem(t *testing.T) {
 
 	ctx := hookContext(t, store, dir, false)
 
-	if want := fmt.Sprintf("#%d  Fix the widget  [BH-1,widget]\n", id); !strings.Contains(ctx, want) {
+	if want := fmt.Sprintf("#%d  Fix the widget  [ABC-1,widget]\n", id); !strings.Contains(ctx, want) {
 		t.Errorf("additionalContext missing line %q:\n%s", want, ctx)
 	}
 	if !strings.Contains(ctx, "  Untagged item\n") || strings.Contains(ctx, "Untagged item  [") {
@@ -148,8 +149,8 @@ func TestHookRun_CompactDropsRedundantTags(t *testing.T) {
 	store := newTestStore(t)
 	dir := newTestRepo(t, "https://github.com/svandragt/park")
 	id, err := store.Add(park.Item{
-		Name:   "BH-716: fix the widget",
-		Tags:   "bh,BH-716,widget,consent,Consent",
+		Name:   "ABC-716: fix the widget",
+		Tags:   "abc,ABC-716,widget,consent,Consent",
 		Remote: "https://github.com/svandragt/park",
 	})
 	if err != nil {
@@ -161,7 +162,7 @@ func TestHookRun_CompactDropsRedundantTags(t *testing.T) {
 
 	ctx := hookContext(t, store, dir, true)
 
-	if want := fmt.Sprintf("\n%d BH-716: fix the widget [consent]\n", id); !strings.Contains(ctx, want) {
+	if want := fmt.Sprintf("\n%d ABC-716: fix the widget [consent]\n", id); !strings.Contains(ctx, want) {
 		t.Errorf("additionalContext missing line %q:\n%s", want, ctx)
 	}
 	if !strings.Contains(ctx, " Untagged item\n") {
@@ -644,5 +645,107 @@ func TestInstallHook_SkipsPostToolUseWhenNotAsked(t *testing.T) {
 	}
 	if got := settingsHooks(t, path, "PostToolUse"); len(got) != 0 {
 		t.Errorf("PostToolUse = %v, want none", got)
+	}
+}
+
+// git runs a git command in dir and fails the test on error.
+func git(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	c := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgSign=false"}, args...)...)
+	if out, err := c.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v: %s", args, err, out)
+	}
+}
+
+// contextNames returns the item names in additionalContext, in order.
+func contextNames(ctx string, names ...string) []string {
+	type at struct {
+		name string
+		pos  int
+	}
+	var found []at
+	for _, n := range names {
+		if i := strings.Index(ctx, n); i >= 0 {
+			found = append(found, at{n, i})
+		}
+	}
+	sort.Slice(found, func(i, j int) bool { return found[i].pos < found[j].pos })
+	var got []string
+	for _, f := range found {
+		got = append(got, f.name)
+	}
+	return got
+}
+
+func TestHookRun_RanksBranchThenTicketKeyThenNewest(t *testing.T) {
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	git(t, dir, "checkout", "--quiet", "-b", "ABC-123-slug")
+	store.Add(park.Item{Name: "on-branch", Remote: testRemote, Branch: "ABC-123-slug"})
+	store.Add(park.Item{Name: "ticket-tagged", Remote: testRemote, Tags: "urgent,abc-123"})
+	store.Add(park.Item{Name: "near-miss", Remote: testRemote, Tags: "ABC-1230"})
+	store.Add(park.Item{Name: "newest-plain", Remote: testRemote, Branch: "main"})
+
+	// hookRun runs in this test's directory, not dir, so the branch must come from cwd.
+	ctx := hookContext(t, store, dir, true)
+
+	want := []string{"on-branch", "ticket-tagged", "newest-plain", "near-miss"}
+	if got := contextNames(ctx, want...); !reflect.DeepEqual(got, want) {
+		t.Errorf("order = %q, want %q\n%s", got, want, ctx)
+	}
+}
+
+func TestHookRun_DetachedHeadKeepsNewestFirst(t *testing.T) {
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	git(t, dir, "commit", "--quiet", "--allow-empty", "-m", "x")
+	git(t, dir, "checkout", "--quiet", "--detach")
+	store.Add(park.Item{Name: "older", Remote: testRemote})
+	store.Add(park.Item{Name: "newer", Remote: testRemote})
+
+	want := []string{"newer", "older"}
+	if got := contextNames(hookContext(t, store, dir, true), want...); !reflect.DeepEqual(got, want) {
+		t.Errorf("order = %q, want %q", got, want)
+	}
+}
+
+// An old item for this branch must move inside the 2 KB the agent sees.
+func TestHookRun_RecordsRankedItemsWithin2KB(t *testing.T) {
+	store := newTestStore(t)
+	dir := newTestRepo(t, testRemote)
+	git(t, dir, "checkout", "--quiet", "-b", "1234-slug")
+	old, _ := store.Add(park.Item{Name: "old ticket item", Remote: testRemote, Tags: "1234"})
+	for i := range 40 {
+		store.Add(park.Item{Name: fmt.Sprintf("Item %02d %s", i, strings.Repeat("x", 50)), Remote: testRemote})
+	}
+
+	hookContext(t, store, dir, true)
+
+	want := usageFor(t, store, "surfaced", "session-hook", old)[0]
+	if got := usageRows(t, store); !slices.Contains(got, want) {
+		t.Errorf("usage rows lack %q", want)
+	}
+}
+
+func TestTicketKey(t *testing.T) {
+	for branch, want := range map[string]string{
+		"ABC-123-slug":         "ABC-123",
+		"abc-123-slug":         "ABC-123",
+		"ABC-123":              "ABC-123",
+		"1234-slug":            "1234",
+		"1234":                 "1234",
+		"main":                 "",
+		"":                     "",
+		"feature/x":            "",
+		"ABC-slug":             "",
+		"ABC-123/fix-login":    "ABC-123",
+		"ABC-123_slug":         "ABC-123",
+		"feature/ABC-123-slug": "ABC-123",
+		"user/1234-slug":       "1234",
+		"feature/login":        "",
+	} {
+		if got := ticketKey(branch); got != want {
+			t.Errorf("ticketKey(%q) = %q, want %q", branch, got, want)
+		}
 	}
 }

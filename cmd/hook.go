@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -277,6 +279,12 @@ func hookRun(store *park.Store, in io.Reader, out io.Writer, compact bool) error
 	if err != nil || len(items) == 0 {
 		return nil
 	}
+	branch := gitOutput("-C", payload.Cwd, "branch", "--show-current")
+	key := ticketKey(branch)
+	// Stable, so each rank keeps List's newest-first order.
+	sort.SliceStable(items, func(i, j int) bool {
+		return hookRank(items[i], branch, key) < hookRank(items[j], branch, key)
+	})
 
 	// systemMessage is the only field the user sees; additionalContext reaches
 	// the agent silently.
@@ -438,4 +446,36 @@ func markShown(record string, items []park.Item) {
 	for _, it := range items {
 		fmt.Fprintln(f, it.ID)
 	}
+}
+
+// ticketKeyRe matches a Jira-style key (ABC-123) or a bare number (1234) at the
+// start of a branch path segment, ending it or followed by "-" or "_".
+var ticketKeyRe = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9]*-[0-9]+|[0-9]+)([-_]|$)`)
+
+// ticketKey returns the uppercased ticket key that starts the first path
+// segment able to hold one (feature/ABC-123-slug, ABC-123/fix), or "".
+func ticketKey(branch string) string {
+	for _, seg := range strings.Split(branch, "/") {
+		if m := ticketKeyRe.FindStringSubmatch(seg); m != nil {
+			return strings.ToUpper(m[1])
+		}
+	}
+	return ""
+}
+
+// hookRank puts items on the session's branch first, then items tagged with
+// its ticket key, then the rest. The 2 KB limit cuts the list, so order decides
+// what the agent sees.
+func hookRank(it park.Item, branch, key string) int {
+	if branch != "" && it.Branch == branch {
+		return 0
+	}
+	if key != "" {
+		for _, t := range strings.Split(it.Tags, ",") {
+			if strings.EqualFold(strings.TrimSpace(t), key) {
+				return 1
+			}
+		}
+	}
+	return 2
 }

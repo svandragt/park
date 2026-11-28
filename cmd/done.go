@@ -22,15 +22,25 @@ func setStatus(store *park.Store, args []string, status string) error {
 	if err != nil {
 		return err
 	}
+	prev, err := store.Get(id)
+	if err != nil {
+		return err
+	}
 	if err := store.SetStatus(id, status); err != nil {
 		return err
 	}
 	fmt.Printf("#%d marked as %s\n", id, status)
+	recordClose(store, prev, status)
 	if status == "resolved" {
-		if it, err := store.Get(id); err == nil {
-			_ = store.RecordUsage([]string{it.UID}, "resolved", "cli")
-		}
 		return warnOpenChildren(store, id)
 	}
 	return nil
+}
+
+// recordClose logs a usage row when an item changes to resolved or archived.
+func recordClose(store *park.Store, prev *park.Item, to string) {
+	if (to != "resolved" && to != "archived") || prev.Status == to {
+		return
+	}
+	_ = store.RecordUsage([]string{prev.UID}, to, "cli")
 }

@@ -486,7 +486,7 @@ func (s *Store) SetStatus(id int64, status string) error {
 }
 
 // ftsQuery quotes each word as an FTS5 string, so "-", ":" and quotes in
-// input such as BH-716 search as text instead of parsing as operators.
+// input such as ABC-716 search as text instead of parsing as operators.
 func ftsQuery(keyword string) string {
 	words := strings.Fields(keyword)
 	for i, w := range words {

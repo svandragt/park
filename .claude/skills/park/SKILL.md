@@ -1,7 +1,7 @@
 ---
 name: park
 version: 1.7.0
-description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles switching to work on a ticket (BH-740, ABC-123): lists every parked item for it. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
+description: "Park context for later. Use when the user says: 'park this', 'park that', 'save this for later', 'remember this', 'I'll come back to this', 'park the current work'. Also handles: 'what did I park?', 'show parked items', 'list parked', 'unpark', 'done with #N', 'resolve #N', 'work on #N', 'resume #N', 'pick up #N'. Also handles switching to work on a ticket (ABC-123, 1234): lists every parked item for it. Also handles: 'park github issues', 'park existing github issues', 'park open issues'."
 author: svandragt
 ---
 
@@ -14,10 +14,10 @@ Saves work-in-progress context to a local SQLite DB (`$XDG_DATA_HOME/park/park.d
 1. When the user says "park this/that/something" or wants to save context for later, extract metadata from the current conversation and run `park add`.
 2. Never ask for confirmation before parking — extract and run immediately, then report the ID.
 3. When the user asks to see what's parked, auto-detect the current git remote (`git remote get-url origin 2>/dev/null`) and pass it via `--remote` to scope results to the current project. If no remote exists, run `park list` without a filter.
-4. When the user marks something done/resolved, run `park done <id>`.
+4. When the work an item describes is done, run `park done <id>`. When an item is obsolete, a duplicate or won't be done, run `park archive <id>` instead, because `park stats` counts the two separately.
 5. When the user wants to work on, resume, or unpark an item, run `park show <id>` and present the full context (body, why, how) so they can pick up immediately.
 6. When the user wants to reopen a resolved/archived item, run `park reopen <id>`.
-7. Parked items surface at session start only if the `SessionStart` hook is installed. If the user is surprised that an item did not surface, or asks how to be reminded automatically, run `park hook --install` and tell them it takes effect next session. On Claude Code the same command also installs a `PostToolUse` hook that surfaces items naming a file when you read or edit it, once per session. Surface those items if they are relevant, and do not act on them unprompted. Park records locally when an item is surfaced (session hook, file hook, `park search`, `park list --tag`), viewed (`park show`) and resolved (`park done`). When the user asks whether parked items get used, run `park stats`.
+7. Parked items surface at session start only if the `SessionStart` hook is installed. If the user is surprised that an item did not surface, or asks how to be reminded automatically, run `park hook --install` and tell them it takes effect next session. On Claude Code the same command also installs a `PostToolUse` hook that surfaces items naming a file when you read or edit it, once per session. Surface those items if they are relevant, and do not act on them unprompted. Park records locally when an item is surfaced (session hook, file hook, `park search`, `park list --tag`), viewed (`park show`), resolved (`park done`) and archived (`park archive`). When the user asks whether parked items get used, run `park stats`.
 8. When the session switches to work on a ticket, list every parked item for it before starting: run `park list --status active --tag <KEY>`, then `park search "<KEY>"` for items that name the key only in their text. Read each hit with `park show <id>` and present them all. The session-start hook preview shows only the newest few items, so older items for the ticket are missing from it.
 9. Never mention park IDs in anything that leaves this machine — PR descriptions, commit messages, GitHub issues, comments. The park DB is local to the user only, so `#3` means nothing to anyone else. Say "is parked" or "tracked locally" instead. Park IDs are fine in chat replies to the user.
 10. When you work on a PR in a repo, check that repo's parked items for knowledge about how the codebase works. If the PR already changes the area an item describes, move the item into the repo's AGENTS.md in the same PR and resolve it. Don't open a PR only to move parked items. In a shared repo, propose the AGENTS.md change in one line first.
@@ -42,7 +42,7 @@ A finding raised mid-task costs attention whether or not it's acted on; a list a
 | `--body` | The current context: what file/function/problem, current state |
 | `--why` | Why this matters / what the end goal is |
 | `--how` | Concrete next step to resume from here |
-| `--tags` | The exact ticket key(s) when the item belongs to a ticket (`BH-818,BH-817`), plus optional keywords (language, area, feature name). A ticket can have several items. |
+| `--tags` | The exact ticket key(s) when the item belongs to a ticket (`ABC-818,ABC-817`), plus optional keywords (language, area, feature name). A ticket can have several items. |
 | `--type` | Optional: `task` (default), `project` (a milestone), `bug`, `feature`, `chore`, `docs` |
 | `--parent` | Optional: id of a parent item, such as a milestone (`240`, `#240` or `-` for the most recent) |
 | `--remote` | Optional: file under this git remote URL instead of the current repo's (no branch is stored) |
@@ -83,7 +83,7 @@ park edit <id> --remote <url>
 # Mark done (warns if the item has open children)
 park done <id>
 
-# Archive
+# Archive an obsolete, duplicate or won't-do item
 park archive <id>
 
 # Reopen a resolved/archived item
@@ -95,7 +95,7 @@ park delete <id>
 # Bulk-delete resolved/archived items older than N days (default 30)
 park prune --days 30
 
-# Report how parked items were surfaced, viewed and resolved (default: last 30 days)
+# Report how parked items were surfaced, viewed, resolved and archived (default: last 30 days)
 park stats --days 30
 
 # Change the type of every item of one type
