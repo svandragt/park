@@ -92,6 +92,14 @@ goes ahead. Deleting or pruning a milestone clears `parent` on its children.
 | `PARK_DB` | `~/.local/share/park/park.db` (XDG-aware) |
 | `PARK_SYNC_DIR` | unset; when set, park writes and reads sync logs there |
 
+To test with a throwaway database, unset `PARK_SYNC_DIR` as well. While it is
+set, every database you point park at reads and writes the same sync log, so
+test items reach your real items:
+
+```bash
+env -u PARK_SYNC_DIR PARK_DB=/tmp/park-test.db park list
+```
+
 ## Sync across machines
 
 To use park on more than one machine, give each machine its own log file in a
@@ -99,7 +107,6 @@ shared folder. Set `PARK_SYNC_DIR` to a folder your file syncer keeps in step,
 and leave `PARK_DB` on its local default:
 
 ```bash
-export PARK_DB="$HOME/.local/share/park/park.db"
 export PARK_SYNC_DIR="$HOME/sync/park"
 ```
 
